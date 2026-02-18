@@ -63,6 +63,8 @@
       width: 15px;
       background-color: transparent;
       transition: background-color 0.2s ease;
+      border-radius: 2.8px;
+      box-sizing: border-box;
     }
 
     .checkbox-container input:checked ~ .checkmark {
@@ -72,7 +74,19 @@
     .checkmark:after {
       content: "";
       position: absolute;
-      display: none;
+      left: 5px;
+      top: 1.5px;
+      width: 3px;
+      height: 7px;
+      border: solid #1e1e1e;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .checkbox-container input:checked ~ .checkmark:after {
+      opacity: 1;
     }
 
     .option-label {
@@ -97,14 +111,18 @@
       height: 24px;
     }
 
-    .selector-wrapper {
+    /* Custom Dropdown Styles */
+    .dropdown {
+      position: relative;
+      width: 100%;
       display: flex;
-      align-items: center;
+      flex-direction: column;
+      gap: 4px;
     }
 
-    .site-selector {
-      flex: 1;
-      padding: 8px;
+    .dropdown-trigger {
+      width: 100%;
+      padding: 8px 28px 8px 8px;
       background-color: #1e1e1e;
       color: #e0e0e0;
       border: 1px solid #444;
@@ -112,19 +130,80 @@
       font-size: 14px;
       font-family: Arial, sans-serif;
       cursor: pointer;
-      -webkit-appearance: none;
-      appearance: none;
+      text-align: left;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: border-color 0.2s ease;
+      flex-shrink: 0;
     }
 
-    .site-selector:focus {
-      outline: none;
+    .dropdown-trigger:hover {
+      border-color: #555;
+    }
+
+    .dropdown-trigger.open {
       border-color: #3b82f6;
     }
 
-    .site-selector option {
+    .dropdown-arrow {
+      width: 0;
+      height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid #b0b0b0;
+      transition: transform 0.2s ease;
+      position: absolute;
+      right: 10px;
+      pointer-events: none;
+    }
+
+    .dropdown-trigger.open .dropdown-arrow {
+      transform: rotate(180deg);
+    }
+
+    .dropdown-menu {
       background-color: #1e1e1e;
+      border: 1px solid #444;
+      border-radius: 4px;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease, opacity 0.2s ease;
+      opacity: 0;
+      flex-shrink: 0;
+    }
+
+    .dropdown-menu.open {
+      max-height: 250px;
+      overflow-y: auto;
+      opacity: 1;
+      margin-bottom: 8px;
+    }
+
+    .dropdown-item {
+      padding: 8px 10px;
+      font-size: 14px;
       color: #e0e0e0;
-      padding: 8px;
+      cursor: pointer;
+      transition: background-color 0.15s ease, color 0.15s ease;
+      opacity: 0.5;
+      font-weight: 400;
+    }
+
+    .dropdown-item:hover {
+      background-color: #2a2a2a;
+      opacity: 1;
+    }
+
+    .dropdown-item.selected {
+      background-color: transparent;
+      color: #3b82f6;
+      opacity: 1;
+      font-weight: 700;
+    }
+
+    .dropdown-item.selected:hover {
+      background-color: #2a2a2a;
     }
 
     /* Individual site blocker option */
@@ -166,6 +245,24 @@
       background-color: #3b82f6;
       margin-top: 10px;
     }
+
+    /* Scrollbar for dropdown */
+    .dropdown-menu::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .dropdown-menu::-webkit-scrollbar-track {
+      background: #1e1e1e;
+    }
+
+    .dropdown-menu::-webkit-scrollbar-thumb {
+      background: #444;
+      border-radius: 3px;
+    }
+
+    .dropdown-menu::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
   </style>
 </head>
 <body>
@@ -175,16 +272,20 @@
       <img src="images/cockatiel.gif" alt="gif" class="title-gif">
     </div>
 
-    <div class="selector-wrapper">
-      <select id="site-selector" class="site-selector">
-        <option value="global">Global Settings</option>
-        <option value="youtube">YouTube</option>
-        <option value="reddit">Reddit</option>
-        <option value="twitter">Twitter</option>
-        <option value="instagram">Instagram</option>
-        <option value="tiktok">TikTok</option>
-        <option value="facebook">Facebook</option>
-      </select>
+    <div class="dropdown" id="site-dropdown">
+      <button class="dropdown-trigger" id="dropdown-trigger" type="button">
+        <span id="dropdown-selected">Global Settings</span>
+        <span class="dropdown-arrow"></span>
+      </button>
+      <div class="dropdown-menu" id="dropdown-menu">
+        <div class="dropdown-item selected" data-value="global">Global Settings</div>
+        <div class="dropdown-item" data-value="youtube">YouTube</div>
+        <div class="dropdown-item" data-value="reddit">Reddit</div>
+        <div class="dropdown-item" data-value="twitter">Twitter</div>
+        <div class="dropdown-item" data-value="instagram">Instagram</div>
+        <div class="dropdown-item" data-value="tiktok">TikTok</div>
+        <div class="dropdown-item" data-value="facebook">Facebook</div>
+      </div>
     </div>
 
     <!-- Global Settings Section -->
