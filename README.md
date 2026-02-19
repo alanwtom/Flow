@@ -5,6 +5,12 @@ This extension provides two main features and works on all major Chromium-based 
 1. **YouTube FYP Blocker**: Hides video recommendations, channels, and notifications on YouTube while preserving search functionality
 2. **New Tab Blocker**: Automatically closes new tabs and returns to the previous tab (except for links that open in new tabs)
 
+## 🆕 Version
+Current release: **2.0**
+
+## 📸 UI Screenshot
+![Flow popup UI](https://github.com/user-attachments/assets/cfe137d0-4c55-44a3-bc06-9af37819df4d)
+
 ## 🔧 Installation Instructions
 
 ### Method 1: Loading the unpacked extension (Developer mode)
