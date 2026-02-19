@@ -9,7 +9,7 @@ const SITE_FEATURES = {
     classPrefix: 'reddit-block'
   },
   twitter: {
-    hosts: ['twitter.com', 'x.com', 'mobile.twitter.com', 'help.twitter.com'],
+    hosts: ['twitter.com', 'x.com', 'mobile.twitter.com'],
     features: ['twitter_foryou', 'twitter_following', 'twitter_trends', 'twitter_suggestions', 'twitter_communities', 'twitter_topics'],
     classPrefix: 'twitter-block'
   }
@@ -26,60 +26,12 @@ function detectSite() {
   return null;
 }
 
-// Indicator element
-let indicatorElement = null;
-
-function showIndicator(siteName) {
-  if (indicatorElement) {
-    indicatorElement.remove();
-  }
-
-  indicatorElement = document.createElement('div');
-  indicatorElement.id = 'flow-indicator';
-  indicatorElement.innerHTML = '<span class="flow-icon">🐦</span> Flow active';
-  indicatorElement.setAttribute('data-site', siteName);
-  indicatorElement.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    color: white;
-    padding: 10px 16px;
-    border-radius: 24px;
-    font-size: 13px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-weight: 500;
-    z-index: 2147483647;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-    pointer-events: none;
-    opacity: 0;
-    transform: translateY(10px);
-    transition: opacity 0.3s ease, transform 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  `;
-
-  document.body.appendChild(indicatorElement);
-
-  // Animate in
-  requestAnimationFrame(() => {
-    indicatorElement.style.opacity = '0.8';
-    indicatorElement.style.transform = 'translateY(0)';
-  });
+function showIndicator() {
+  // Badge removed - no-op
 }
 
 function hideIndicator() {
-  if (indicatorElement) {
-    indicatorElement.style.opacity = '0';
-    indicatorElement.style.transform = 'translateY(10px)';
-    setTimeout(() => {
-      if (indicatorElement && indicatorElement.parentNode) {
-        indicatorElement.remove();
-      }
-      indicatorElement = null;
-    }, 300);
-  }
+  // Badge removed - no-op
 }
 
 // Initialize
@@ -91,8 +43,8 @@ if (currentSite) {
 
   // Map feature keys to class names
   function getClassName(featureKey) {
-    const suffix = featureKey.replace(/^.*_/, '');
-    return `${classPrefix}-${suffix}`;
+    const parts = featureKey.split('_').slice(1);
+    return `${classPrefix}-${parts.join('-')}`;
   }
 
   // Toggle blocking classes on html element
@@ -111,11 +63,8 @@ if (currentSite) {
       const anythingBlocked = features.some(key =>
         result[key] === true && !isPaused
       );
-      if (anythingBlocked) {
-        showIndicator(currentSite);
-      } else {
-        hideIndicator();
-      }
+      if (anythingBlocked) showIndicator();
+      else hideIndicator();
     });
   }
 
@@ -144,24 +93,4 @@ if (currentSite) {
 
   initWhenReady();
 
-  // Handle dynamic page changes (SPA navigation)
-  const observer = new MutationObserver(() => {
-    // Re-apply indicator if any blocking class is present
-    const hasAnyBlockingClass = features.some(key => {
-      const className = getClassName(key);
-      return document.documentElement.classList.contains(className);
-    });
-    if (hasAnyBlockingClass && !indicatorElement) {
-      showIndicator(currentSite);
-    }
-  });
-
-  // Start observing when document is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      observer.observe(document.documentElement, { childList: true, subtree: true });
-    });
-  } else {
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-  }
 }

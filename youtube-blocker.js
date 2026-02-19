@@ -110,6 +110,7 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 
   // MutationObserver for dynamic Shorts blocking
   let shortsObserver = null;
+  let shortsDebounceTimer = null;
   function startShortsObserver() {
     if (shortsObserver) return;
 
@@ -129,7 +130,11 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
       });
 
       if (hasNewNodes) {
-        blockShortsElements();
+        if (shortsDebounceTimer) return;
+        shortsDebounceTimer = setTimeout(() => {
+          blockShortsElements();
+          shortsDebounceTimer = null;
+        }, 100);
       }
     });
 
