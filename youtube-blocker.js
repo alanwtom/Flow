@@ -7,7 +7,7 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 
   // Granular feature storage keys
   const YOUTUBE_FEATURES = [
-    'yt_homepage', 'yt_shorts', 'yt_sidebar', 'yt_comments',
+    'yt_homepage', 'yt_shorts', 'yt_posts', 'yt_sidebar', 'yt_comments',
     'yt_endcards', 'yt_chat', 'yt_notifications', 'yt_create_button', 'yt_autoplay'
   ];
 
@@ -28,6 +28,7 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
       // Apply classes for each enabled feature
       document.documentElement.classList.toggle('yt-block-homepage', result.yt_homepage && !isPaused);
       document.documentElement.classList.toggle('yt-block-shorts', result.yt_shorts && !isPaused);
+      document.documentElement.classList.toggle('yt-block-posts', result.yt_posts && !isPaused);
       document.documentElement.classList.toggle('yt-block-sidebar', result.yt_sidebar && !isPaused);
       document.documentElement.classList.toggle('yt-block-comments', result.yt_comments && !isPaused);
       document.documentElement.classList.toggle('yt-block-endcards', result.yt_endcards && !isPaused);

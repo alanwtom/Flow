@@ -11,6 +11,22 @@ html.yt-block-homepage ytd-horizontal-card-list-renderer {
   display: none !important;
 }
 
+/* Posts - hide YouTube posts (images, polls, etc. from channels) */
+html.yt-block-posts ytd-backstage-post-renderer,
+html.yt-block-posts ytd-post-renderer,
+html.yt-block-posts ytd-rich-section-renderer:has(ytd-backstage-post-renderer),
+html.yt-block-posts ytd-rich-shelf-renderer:has(ytd-backstage-post-renderer),
+/* Posts section headers */
+html.yt-block-posts ytd-shelf-renderer:has([href*="/posts"]),
+html.yt-block-posts ytd-shelf-renderer:has([href*="/community"]),
+html.yt-block-posts h2:has(~ ytd-backstage-post-renderer),
+html.yt-block-posts h2:has(~ ytd-post-renderer),
+/* Latest YouTube posts section */
+html.yt-block-posts ytd-rich-shelf-renderer[is-posts],
+html.yt-block-posts ytd-grid-renderer ytd-backstage-post-renderer {
+  display: none !important;
+}
+
 /* Shorts - hide in all locations */
 html.yt-block-shorts ytd-reel-shelf-renderer,
 html.yt-block-shorts ytd-rich-section-renderer:has(yt-reel-shelf-renderer),

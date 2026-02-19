@@ -6,7 +6,8 @@ const SUB_OPTIONS = {
   youtube: {
     'Feeds': [
       { key: 'yt_homepage', label: 'Homepage Feed', default: true },
-      { key: 'yt_shorts', label: 'Shorts', default: true }
+      { key: 'yt_shorts', label: 'Shorts', default: true },
+      { key: 'yt_posts', label: 'Posts', default: true }
     ],
     'Watch Page': [
       { key: 'yt_sidebar', label: 'Sidebar (Up Next)', default: true },
