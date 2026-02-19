@@ -9,10 +9,8 @@ Minimal browser extension for a calmer YouTube and cleaner tab bar.
 Works on major Chromium-based browsers (Chrome, Edge, Brave, Opera, Arc, Vivaldi, etc.).
 
 ## Screenshot
-_Screenshot coming soon._  
-<!-- Replace the line above with your image, e.g.:
-![Flow screenshot](./docs/screenshot.png)
--->
+<img width="270" height="328" alt="Screenshot 2026-02-19 at 11 44 09 AM" src="https://github.com/user-attachments/assets/44ade56d-dc69-4951-8873-4ce61e1434eb" />
+
 
 ## Install
 - **Install:** `Flow` from the [Chrome Web Store](https://chromewebstore.google.com/detail/flow/odenofhkafaeedoohodgdndpeeadpndg?authuser=0&hl=en).
