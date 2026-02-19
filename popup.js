@@ -16,6 +16,7 @@ const SUB_OPTIONS = {
     ],
     'Other': [
       { key: 'yt_notifications', label: 'Notifications', default: false },
+      { key: 'yt_create_button', label: 'Create Button', default: false },
       { key: 'yt_autoplay', label: 'Autoplay', default: false }
     ]
   },

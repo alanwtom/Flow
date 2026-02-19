@@ -8,60 +8,16 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
   // Granular feature storage keys
   const YOUTUBE_FEATURES = [
     'yt_homepage', 'yt_shorts', 'yt_sidebar', 'yt_comments',
-    'yt_endcards', 'yt_chat', 'yt_notifications', 'yt_autoplay'
+    'yt_endcards', 'yt_chat', 'yt_notifications', 'yt_create_button', 'yt_autoplay'
   ];
 
-  // Indicator functions
+  // Indicator functions (disabled - badge removed)
   function showIndicator() {
-    if (indicatorElement) {
-      indicatorElement.remove();
-    }
-
-    indicatorElement = document.createElement('div');
-    indicatorElement.id = 'flow-indicator';
-    indicatorElement.innerHTML = '<span class="flow-icon">🐦</span> Flow active';
-    indicatorElement.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-      color: white;
-      padding: 10px 16px;
-      border-radius: 24px;
-      font-size: 13px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-weight: 500;
-      z-index: 2147483647;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-      pointer-events: none;
-      opacity: 0;
-      transform: translateY(10px);
-      transition: opacity 0.3s ease, transform 0.3s ease;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    `;
-
-    document.body.appendChild(indicatorElement);
-
-    // Animate in
-    requestAnimationFrame(() => {
-      indicatorElement.style.opacity = '0.8';
-      indicatorElement.style.transform = 'translateY(0)';
-    });
+    // Badge removed - no-op
   }
 
   function hideIndicator() {
-    if (indicatorElement) {
-      indicatorElement.style.opacity = '0';
-      indicatorElement.style.transform = 'translateY(10px)';
-      setTimeout(() => {
-        if (indicatorElement && indicatorElement.parentNode) {
-          indicatorElement.remove();
-        }
-        indicatorElement = null;
-      }, 300);
-    }
+    // Badge removed - no-op
   }
 
   // Apply blocking based on individual settings
@@ -77,6 +33,7 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
       document.documentElement.classList.toggle('yt-block-endcards', result.yt_endcards && !isPaused);
       document.documentElement.classList.toggle('yt-block-chat', result.yt_chat && !isPaused);
       document.documentElement.classList.toggle('yt-block-notifications', result.yt_notifications && !isPaused);
+      document.documentElement.classList.toggle('yt-block-create-button', result.yt_create_button && !isPaused);
       document.documentElement.classList.toggle('yt-block-autoplay', result.yt_autoplay && !isPaused);
 
       // Show indicator if anything is blocked
@@ -88,6 +45,100 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
     });
   }
 
+  // Aggressive Shorts blocking via JavaScript
+  function blockShortsElements() {
+    if (!document.documentElement.classList.contains('yt-block-shorts')) {
+      return;
+    }
+
+    // Selectors for Shorts in various locations
+    const shortsSelectors = [
+      // Direct Shorts shelves
+      'ytd-reel-shelf-renderer',
+      // Shorts in homepage feed (by video type attribute)
+      'ytd-grid-video-renderer[is-short]',
+      'ytd-rich-item-renderer:has([href*="/shorts"])',
+      'ytd-video-renderer:has(a[href*="/shorts"])',
+      // Shorts in sidebar recommendations
+      'ytd-compact-video-renderer:has(a[href*="/shorts"])',
+      // Shorts by thumbnail overlay style
+      'ytd-thumbnail-overlay-time-status-renderer[overlay-style="SHORTS"]',
+      // Navigation
+      'ytd-mini-guide-entry-renderer:has(a[href*="/shorts"])',
+      'tp-yt-paper-tab:has(a[href*="/shorts"])',
+    ];
+
+    shortsSelectors.forEach(selector => {
+      try {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+          // Only hide if it's actually a Shorts element
+          const href = el.querySelector?.('a[href*="/shorts"]')?.href ||
+                      el.getAttribute?.('href') ||
+                      el.querySelector?.('[href]')?.href || '';
+          if (href.includes('/shorts') ||
+              el.hasAttribute('is-short') ||
+              el.querySelector?.('[overlay-style="SHORTS"]') ||
+              el.tagName === 'YTD-REEL-SHELF-RENDERER') {
+            el.style.display = 'none';
+            el.setAttribute('data-flow-blocked', 'shorts');
+          }
+        });
+      } catch (e) {
+        // Selector might be invalid in some contexts, skip it
+      }
+    });
+
+    // Also check for any links with /shorts in URL and hide their parent containers
+    const allLinks = document.querySelectorAll('a[href*="/shorts"]');
+    allLinks.forEach(link => {
+      // Walk up to find the video container
+      let parent = link;
+      for (let i = 0; i < 8; i++) {
+        parent = parent.parentElement;
+        if (!parent) break;
+        // Check if this is a video renderer container
+        const tag = parent.tagName?.toLowerCase() || '';
+        if (tag.includes('video-renderer') || tag.includes('item-renderer') || tag.includes('rich-item')) {
+          parent.style.display = 'none';
+          parent.setAttribute('data-flow-blocked', 'shorts');
+          break;
+        }
+      }
+    });
+  }
+
+  // MutationObserver for dynamic Shorts blocking
+  let shortsObserver = null;
+  function startShortsObserver() {
+    if (shortsObserver) return;
+
+    shortsObserver = new MutationObserver((mutations) => {
+      // Only block if Shorts feature is enabled
+      if (!document.documentElement.classList.contains('yt-block-shorts')) {
+        return;
+      }
+
+      let hasNewNodes = false;
+      mutations.forEach(mutation => {
+        mutation.addedNodes.forEach(node => {
+          if (node.nodeType === 1) { // Element node
+            hasNewNodes = true;
+          }
+        });
+      });
+
+      if (hasNewNodes) {
+        blockShortsElements();
+      }
+    });
+
+    shortsObserver.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  }
+
   // Initialize from storage
   updateYouTubeBlocking();
 
@@ -96,17 +147,28 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
     const hasRelevantChange = YOUTUBE_FEATURES.some(key => changes[key]) || changes.pausedUntil;
     if (hasRelevantChange) {
       updateYouTubeBlocking();
+      // Start Shorts observer if Shorts blocking is enabled
+      browserAPI.storage.sync.get(['yt_shorts', 'pausedUntil'], function(result) {
+        if (result.yt_shorts && !result.pausedUntil) {
+          blockShortsElements();
+          startShortsObserver();
+        }
+      });
     }
   });
 
-  // Handle SPA navigation - ensure indicator stays visible
+  // Handle SPA navigation - ensure blocking persists
   const observer = new MutationObserver(() => {
     const hasAnyBlockingClass = YOUTUBE_FEATURES.some(key => {
       const className = 'yt-block-' + key.replace('yt_', '');
       return document.documentElement.classList.contains(className);
     });
-    if (hasAnyBlockingClass && !indicatorElement) {
-      showIndicator();
+    if (hasAnyBlockingClass) {
+      // Re-run Shorts blocking on navigation
+      if (document.documentElement.classList.contains('yt-block-shorts')) {
+        blockShortsElements();
+        startShortsObserver();
+      }
     }
   });
 
@@ -114,8 +176,18 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       observer.observe(document.documentElement, { childList: true, subtree: true });
+      // Initial Shorts blocking
+      if (document.documentElement.classList.contains('yt-block-shorts')) {
+        blockShortsElements();
+        startShortsObserver();
+      }
     });
   } else {
     observer.observe(document.documentElement, { childList: true, subtree: true });
+    // Initial Shorts blocking
+    if (document.documentElement.classList.contains('yt-block-shorts')) {
+      blockShortsElements();
+      startShortsObserver();
+    }
   }
 })();
