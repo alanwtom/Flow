@@ -1,0 +1,133 @@
+/* ============================================================================
+   Flow Social Media Blocker - Granular Feature CSS
+   Applied when per-feature classes are present on <html>
+   ============================================================================ */
+
+/* ============================================================================
+   Reddit (reddit-block-*)
+   ============================================================================ */
+
+/* Home Feed */
+html.reddit-block-feed body[class*="theme-"] #home-page-list,
+html.reddit-block-feed body[class*="theme-"] .Feed,
+html.reddit-block-feed body[class*="theme-"] [slot="feed"],
+html.reddit-block-feed body[class*="theme-"] shreddit-feed,
+html.reddit-block-feed .Post:not(.PostPage .Post),
+html.reddit-block-feed [data-testid="post"]:not(.PostPage [data-testid="post"]),
+/* Old Reddit */
+html.reddit-block-feed body.listing-page .content,
+html.reddit-block-feed body[class*="listing-page"] #siteTable {
+  display: none !important;
+}
+
+/* Trending/Popular */
+html.reddit-block-trending [data-testid="trending-tab"],
+html.reddit-block-trending .shreddit-nav__tabs,
+html.reddit-block-trending [role="tab"][href*="/popular"],
+html.reddit-block-trending a[href*="/popular"] {
+  display: none !important;
+}
+
+/* Awards */
+html.reddit-block-awards [data-testid="awards-panel"],
+html.reddit-block-awards .shreddit-awards-widget,
+html.reddit-block-awards [data-click-id="awards"],
+html.reddit-block-awards .Award-icon,
+html.reddit-block-awards .awardings-bar {
+  display: none !important;
+}
+
+/* Chat Widget */
+html.reddit-block-chat [data-testid="chat-button"],
+html.reddit-block-chat [data-testid="chat-sidebar"],
+html.reddit-block-chat .chat-container,
+html.reddit-block-chat #chat {
+  display: none !important;
+}
+
+/* Sidebar Suggestions */
+html.reddit-block-sidebar [data-testid="recommendations-sidebar"],
+html.reddit-block-sidebar .RecommendedCommunities,
+html.reddit-block-sidebar [data-testid="community-sidebar"],
+html.reddit-block-sidebar .side .login-form-side {
+  display: none !important;
+}
+
+/* ============================================================================
+   Twitter/X (twitter-block-*)
+   ============================================================================ */
+
+/* For You Timeline */
+html.twitter-block-foryou [data-testid="primaryColumn"] > div:has([data-testid="TweetTimeline"]) {
+  display: none !important;
+}
+
+/* Following Timeline */
+html.twitter-block-following [data-testid="timeline"] {
+  display: none !important;
+}
+
+/* Trends ("What's Happening" sidebar) */
+html.twitter-block-trends [data-testid="trends"],
+html.twitter-block-trends .SidebarNav,
+html.twitter-block-trends [aria-label*="Timeline"] + div,
+html.twitter-block-trends section[aria-label*="What's happening"] {
+  display: none !important;
+}
+
+/* Who to Follow (User suggestions) */
+html.twitter-block-suggestions [data-testid="follow-recommendations"],
+html.twitter-block-suggestions [aria-label*="Who to follow"],
+html.twitter-block-suggestions div[data-testid="UserCell"] {
+  display: none !important;
+}
+
+/* Communities */
+html.twitter-block-communities [data-testid="communities"],
+html.twitter-block-communities [aria-label*="Communities"],
+html.twitter-block-communities a[href*="/i/communities"] {
+  display: none !important;
+}
+
+/* Topics */
+html.twitter-block-topics [data-testid="topics"],
+html.twitter-block-topics [aria-label*="Topics"],
+html.twitter-block-topics div:has([href*="/topics"]) {
+  display: none !important;
+}
+
+/* ============================================================================
+   Legacy Support - Single class for backward compatibility
+   ============================================================================ */
+
+/* Reddit - Legacy single class */
+html.flow-blocker-enabled body[class*="theme-"] #home-page-list,
+html.flow-blocker-enabled body[class*="theme-"] .Feed,
+html.flow-blocker-enabled body[class*="theme-"] [slot="feed"],
+html.flow-blocker-enabled body[class*="theme-"] shreddit-feed,
+html.flow-blocker-enabled .Post:not(.PostPage .Post),
+html.flow-blocker-enabled [data-testid="post"]:not(.PostPage [data-testid="post"]) {
+  display: none !important;
+}
+
+/* Old Reddit - Legacy */
+html.flow-blocker-enabled body.listing-page .content,
+html.flow-blocker-enabled body[class*="listing-page"] #siteTable {
+  display: none !important;
+}
+
+/* Twitter/X - Legacy single class */
+html.flow-blocker-enabled [data-testid="primaryColumn"] > div:not(:has([data-testid="SearchBox"])),
+html.flow-blocker-enabled [data-testid="primaryTimeline"],
+html.flow-blocker-enabled div[data-testid="tweet"]:not([data-testid="tweetDetail"]) {
+  display: none !important;
+}
+
+/* Ensure search and important navigation remain visible */
+html.flow-blocker-enabled [role="search"],
+html.flow-blocker-enabled [data-testid="SearchBox"],
+html.flow-blocker-enabled header,
+html.flow-blocker-enabled nav,
+html.flow-blocker-enabled [role="navigation"] {
+  display: block !important;
+}

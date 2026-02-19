@@ -1,5 +1,87 @@
-/* YouTube FYP Blocker CSS */
-/* Hide video recommendations on homepage and sidebar */
+/* ============================================================================
+   Flow YouTube Blocker - Granular Feature CSS
+   Applied when per-feature classes are present on <html>
+   ============================================================================ */
+
+/* Homepage Feed */
+html.yt-block-homepage ytd-rich-grid-renderer,
+html.yt-block-homepage ytd-rich-grid-renderer ~ ytd-rich-grid-renderer,
+html.yt-block-homepage ytd-shelf-renderer,
+html.yt-block-homepage ytd-horizontal-card-list-renderer {
+  display: none !important;
+}
+
+/* Shorts - hide in all locations */
+html.yt-block-shorts ytd-reel-shelf-renderer,
+html.yt-block-shorts ytd-rich-section-renderer:has(yt-reel-shelf-renderer),
+html.yt-block-shorts ytd-shelf-renderer[title^="Shorts"],
+html.yt-block-shorts ytd-rich-shelf-renderer[is-shelf],
+html.yt-block-shorts ytd-grid-renderer ytd-thumbnail-overlay-time-status-renderer[overlay-style="SHORTS"],
+/* Shorts navigation button */
+html.yt-block-shorts ytd-mini-guide-entry-renderer:has(a[href*="/shorts"]),
+html.yt-block-shorts tp-yt-paper-tab:has(a[href*="/shorts"]) {
+  display: none !important;
+}
+
+/* Sidebar (Up Next) on watch page */
+html.yt-block-sidebar ytd-watch-next-secondary-results-renderer,
+html.yt-block-sidebar #related,
+html.yt-block-sidebar ytd-watch-flexy #secondary {
+  display: none !important;
+}
+
+/* Expand video player when sidebar is hidden */
+html.yt-block-sidebar ytd-watch-flexy #primary,
+html.yt-block-sidebar ytd-watch-flexy #columns {
+  max-width: 100% !important;
+  width: 100% !important;
+  flex: 1 1 100% !important;
+}
+
+/* Comments Section */
+html.yt-block-comments ytd-comments,
+html.yt-block-comments #comments,
+html.yt-block-comments ytd-comment-thread-renderer {
+  display: none !important;
+}
+
+/* End Cards (video end screen overlays) */
+html.yt-block-endcards ytd-compact-autoplay-renderer,
+html.yt-block-endcards .html5-end-screen,
+html.yt-block-endcards .ytp-ce-element,
+html.yt-block-endcards .ytp-ce-video,
+html.yt-block-endcards .ytp-ce-playlist,
+html.yt-block-endcards .ytp-ce-overlay {
+  display: none !important;
+}
+
+/* Live Chat */
+html.yt-block-chat ytd-live-chat-frame,
+html.yt-block-chat #chat,
+html.yt-block-chat ytd-live-chat-frame#chatframe {
+  display: none !important;
+}
+
+/* Notification Bell */
+html.yt-block-notifications ytd-notification-topbar-button-renderer,
+html.yt-block-notifications #notification-button,
+html.yt-block-notifications ytd-topbar-menu-button-renderer:has(button[aria-label*="notification"]) {
+  display: none !important;
+}
+
+/* Autoplay Toggle and Playlist Panel */
+html.yt-block-autoplay ytd-autoplay-renderer,
+html.yt-block-autoplay ytd-playlist-panel-renderer,
+html.yt-block-autoplay #autoplay-checkbox,
+html.yt-block-autoplay .ytp-autonav-toggle-button {
+  display: none !important;
+}
+
+/* ============================================================================
+   Legacy Support - Single class for backward compatibility
+   ============================================================================ */
+
+/* For users with old setting, apply all features */
 .ytd-fyp-blocker-enabled ytd-rich-grid-renderer,
 .ytd-fyp-blocker-enabled ytd-watch-next-secondary-results-renderer,
 .ytd-fyp-blocker-enabled ytd-shelf-renderer,
@@ -8,13 +90,13 @@
   display: none !important;
 }
 
-/* Hide channel recommendations */
+/* Hide channel recommendations (legacy) */
 .ytd-fyp-blocker-enabled ytd-guide-section-renderer:not(:first-child),
 .ytd-fyp-blocker-enabled ytd-mini-guide-renderer {
   display: none !important;
 }
 
-/* Hide notifications */
+/* Hide notifications (legacy) */
 .ytd-fyp-blocker-enabled ytd-notification-topbar-button-renderer {
   display: none !important;
 }
@@ -64,5 +146,3 @@
 .ytd-fyp-blocker-enabled #related {
   display: none !important;
 }
-
-/* Keep the video player and navigation bar visible and unmodified */

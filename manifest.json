@@ -1,14 +1,22 @@
 {
   "manifest_version": 3,
   "name": "Flow",
-  "version": "1.2",
-  "description": "Blocks YouTube recommendations and prevents new tab creation",
+  "version": "1.3",
+  "description": "Block distractions on YouTube, Reddit, Twitter, Instagram, TikTok, and Facebook",
   "permissions": [
     "storage",
-    "tabs"
+    "tabs",
+    "notifications",
+    "commands"
   ],
   "host_permissions": [
-    "*://*.youtube.com/*"
+    "*://*.youtube.com/*",
+    "*://*.reddit.com/*",
+    "*://*.twitter.com/*",
+    "*://*.x.com/*",
+    "*://*.instagram.com/*",
+    "*://*.tiktok.com/*",
+    "*://*.facebook.com/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -19,8 +27,43 @@
       "matches": ["*://*.youtube.com/*"],
       "js": ["youtube-blocker.js"],
       "css": ["youtube-blocker.css"]
+    },
+    {
+      "matches": [
+        "*://*.reddit.com/*",
+        "*://*.twitter.com/*",
+        "*://*.x.com/*",
+        "*://*.instagram.com/*",
+        "*://*.tiktok.com/*",
+        "*://*.facebook.com/*"
+      ],
+      "js": ["social-blocker.js"],
+      "css": ["social-blocker.css"]
     }
   ],
+  "commands": {
+    "toggle-all": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+B",
+        "mac": "Command+Shift+B"
+      },
+      "description": "Toggle all blockers"
+    },
+    "pause-30min": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+P",
+        "mac": "Command+Shift+P"
+      },
+      "description": "Pause blocking for 30 minutes"
+    },
+    "toggle-current-site": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Toggle blocker for current site"
+    }
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
