@@ -45,13 +45,6 @@ const SUB_OPTIONS = {
   }
 };
 
-// Site configuration
-const siteLabels = {
-  youtube: 'Block FYP',
-  reddit: 'Block Recommendations',
-  twitter: 'Block For You'
-};
-
 // Display names for dropdown
 const siteDisplayNames = {
   global: 'Global Settings',
@@ -61,7 +54,7 @@ const siteDisplayNames = {
 };
 
 // All site keys
-const allSites = Object.keys(siteLabels);
+const allSites = ['youtube', 'reddit', 'twitter'];
 
 // Current selected site
 let currentSelectedSite = 'global';
@@ -89,14 +82,12 @@ function detectSiteFromUrl(url) {
 
 // Popup script to handle UI interactions and settings
 document.addEventListener('DOMContentLoaded', function() {
-  const siteBlockerCheckbox = document.getElementById('site-blocker');
   const globalBlockerCheckbox = document.getElementById('global-blocker');
   const newTabBlockerCheckbox = document.getElementById('new-tab-blocker');
   const dropdownTrigger = document.getElementById('dropdown-trigger');
   const dropdownMenu = document.getElementById('dropdown-menu');
   const dropdownSelected = document.getElementById('dropdown-selected');
   const dropdownItems = document.querySelectorAll('.dropdown-item');
-  const blockLabel = document.getElementById('block-label');
   const globalSettings = document.getElementById('global-settings');
   const individualSetting = document.getElementById('individual-setting');
   const subOptionsContainer = document.getElementById('sub-options');
@@ -168,9 +159,6 @@ document.addEventListener('DOMContentLoaded', function() {
     loadSettings(function(result) {
       if (site === 'global') {
         globalBlockerCheckbox.checked = areAllBlockersEnabled(result);
-      } else {
-        const siteKey = getSiteBlockerKey(site);
-        siteBlockerCheckbox.checked = result[siteKey] === true;
       }
     });
   }
@@ -234,8 +222,6 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
       globalSettings.classList.remove('active');
       individualSetting.classList.add('active');
-      // Update label for individual site
-      blockLabel.textContent = siteLabels[site];
     }
   }
 
@@ -300,10 +286,6 @@ document.addEventListener('DOMContentLoaded', function() {
       // For global mode, set the global blocker checkbox
       if (selectedSite === 'global') {
         globalBlockerCheckbox.checked = areAllBlockersEnabled(result);
-      } else {
-        // Load the toggle state for the selected site
-        const siteKey = getSiteBlockerKey(selectedSite);
-        siteBlockerCheckbox.checked = result[siteKey] === true;
       }
     });
   });
@@ -314,14 +296,6 @@ document.addEventListener('DOMContentLoaded', function() {
     allSites.forEach(site => {
       state[getSiteBlockerKey(site)] = this.checked;
     });
-    browserAPI.storage.sync.set(state);
-  });
-
-  // Individual site blocker
-  siteBlockerCheckbox.addEventListener('change', function() {
-    const siteKey = getSiteBlockerKey(currentSelectedSite);
-    const state = {};
-    state[siteKey] = this.checked;
     browserAPI.storage.sync.set(state);
   });
 

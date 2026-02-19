@@ -160,7 +160,7 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
   // Handle SPA navigation - ensure blocking persists
   const observer = new MutationObserver(() => {
     const hasAnyBlockingClass = YOUTUBE_FEATURES.some(key => {
-      const className = 'yt-block-' + key.replace('yt_', '');
+      const className = 'yt-block-' + key.replace('yt_', '').replace('_', '-');
       return document.documentElement.classList.contains(className);
     });
     if (hasAnyBlockingClass) {
