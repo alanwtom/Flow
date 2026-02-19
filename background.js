@@ -16,12 +16,9 @@ const BADGE_COLORS = {
 let currentBadgeText = '';
 let currentBadgeColor = '';
 
-// Site list for programmatic access
-const SITES = ['youtube', 'reddit', 'twitter'];
-
 // Granular feature keys for each site (for badge counting)
 const SITE_FEATURES = {
-  youtube: ['yt_homepage', 'yt_shorts', 'yt_sidebar', 'yt_comments', 'yt_endcards', 'yt_chat', 'yt_notifications', 'yt_autoplay'],
+  youtube: ['yt_homepage', 'yt_shorts', 'yt_sidebar', 'yt_comments', 'yt_endcards', 'yt_chat', 'yt_notifications', 'yt_create_button', 'yt_autoplay'],
   reddit: ['reddit_feed', 'reddit_trending', 'reddit_awards', 'reddit_chat', 'reddit_sidebar'],
   twitter: ['twitter_foryou', 'twitter_following', 'twitter_trends', 'twitter_suggestions', 'twitter_communities', 'twitter_topics']
 };
@@ -210,13 +207,6 @@ function toggleAllBlockers() {
 
     browserAPI.storage.sync.set(updates);
 
-    // Show notification
-    browserAPI.notifications.create({
-      type: 'basic',
-      iconUrl: 'images/bird.png',
-      title: 'Flow',
-      message: newState ? 'All main blockers enabled' : 'All main blockers disabled'
-    });
   });
 }
 
@@ -230,32 +220,13 @@ function toggleSiteBlocker(site) {
     const newState = !result[mainFeature];
     browserAPI.storage.sync.set({ [mainFeature]: newState });
 
-    // Show notification
-    const siteNames = {
-      youtube: 'YouTube',
-      reddit: 'Reddit',
-      twitter: 'Twitter'
-    };
-    browserAPI.notifications.create({
-      type: 'basic',
-      iconUrl: 'images/bird.png',
-      title: 'Flow',
-      message: `${siteNames[site]} ${newState ? 'enabled' : 'disabled'}`
-    });
   });
 }
 
 // Pause blocking
 function pauseBlocking(minutes) {
   const pausedUntil = Date.now() + (minutes * 60 * 1000);
-  browserAPI.storage.sync.set({ pausedUntil: pausedUntil }, function() {
-    browserAPI.notifications.create({
-      type: 'basic',
-      iconUrl: 'images/bird.png',
-      title: 'Flow',
-      message: `Paused for ${minutes} minutes`
-    });
-  });
+  browserAPI.storage.sync.set({ pausedUntil: pausedUntil });
 }
 
 // Initialize badge on startup
