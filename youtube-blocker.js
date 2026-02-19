@@ -37,6 +37,14 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
       document.documentElement.classList.toggle('yt-block-create-button', result.yt_create_button && !isPaused);
       document.documentElement.classList.toggle('yt-block-autoplay', result.yt_autoplay && !isPaused);
 
+      // Immediately apply JavaScript-based blocking for features that need it
+      if (result.yt_create_button && !isPaused) {
+        blockCreateButton();
+      }
+      if (result.yt_shorts && !isPaused) {
+        blockShortsElements();
+      }
+
       // Show indicator if anything is blocked
       const anythingBlocked = YOUTUBE_FEATURES.some(key =>
         result[key] === true && !isPaused
@@ -44,6 +52,63 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
       if (anythingBlocked) showIndicator();
       else hideIndicator();
     });
+  }
+
+  // Aggressive Create button hiding via JavaScript
+  function blockCreateButton() {
+    const shouldBlock = document.documentElement.classList.contains('yt-block-create-button');
+
+    // Find all topbar menu button renderers
+    const topbarButtons = document.querySelectorAll('ytd-topbar-menu-button-renderer');
+    topbarButtons.forEach(el => {
+      const wasBlocked = el.hasAttribute('data-flow-blocked') && el.getAttribute('data-flow-blocked') === 'create-button';
+
+      if (shouldBlock) {
+        // Check if this is the create button by examining its contents
+        const button = el.querySelector('button');
+        if (button) {
+          const ariaLabel = button.getAttribute('aria-label') || '';
+          // Check for various create button identifiers
+          const svg = button.querySelector('svg');
+          if (svg) {
+            const paths = svg.querySelectorAll('path');
+            let hasCameraIcon = false;
+            paths.forEach(path => {
+              const d = path.getAttribute('d') || '';
+              // Create button has a camera icon with specific path data
+              if (d.includes('M17 10.5') || d.includes('V7c0-.55') || d.includes('c0-.55-.45-1-1-1H4c')) {
+                hasCameraIcon = true;
+              }
+            });
+            // Hide if it has the camera icon OR has create in aria-label
+            if (hasCameraIcon || ariaLabel.toLowerCase().includes('create')) {
+              el.style.display = 'none';
+              el.setAttribute('data-flow-blocked', 'create-button');
+            }
+          } else if (ariaLabel.toLowerCase().includes('create')) {
+            // Fallback: just by aria-label
+            el.style.display = 'none';
+            el.setAttribute('data-flow-blocked', 'create-button');
+          }
+        }
+      } else if (wasBlocked) {
+        // Restore the button if blocking is disabled
+        el.style.display = '';
+        el.removeAttribute('data-flow-blocked');
+      }
+    });
+
+    // Fallback: Try to find by specific ID or class
+    const uploadBtn = document.querySelector('#upload-btn');
+    if (uploadBtn) {
+      if (shouldBlock) {
+        uploadBtn.style.display = 'none';
+        uploadBtn.setAttribute('data-flow-blocked', 'create-button');
+      } else {
+        uploadBtn.style.display = '';
+        uploadBtn.removeAttribute('data-flow-blocked');
+      }
+    }
   }
 
   // Aggressive Shorts blocking via JavaScript
@@ -153,13 +218,18 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
     const hasRelevantChange = YOUTUBE_FEATURES.some(key => changes[key]) || changes.pausedUntil;
     if (hasRelevantChange) {
       updateYouTubeBlocking();
-      // Start Shorts observer if Shorts blocking is enabled
-      browserAPI.storage.sync.get(['yt_shorts', 'pausedUntil'], function(result) {
-        if (result.yt_shorts && !result.pausedUntil) {
-          blockShortsElements();
-          startShortsObserver();
-        }
-      });
+      // Always call these when their settings change (to handle both enable and disable)
+      if (changes.yt_shorts || changes.pausedUntil) {
+        browserAPI.storage.sync.get(['yt_shorts', 'pausedUntil'], function(result) {
+          if (result.yt_shorts && !result.pausedUntil) {
+            blockShortsElements();
+            startShortsObserver();
+          }
+        });
+      }
+      if (changes.yt_create_button || changes.pausedUntil) {
+        blockCreateButton(); // This now handles both enable and disable
+      }
     }
   });
 
@@ -175,6 +245,10 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
         blockShortsElements();
         startShortsObserver();
       }
+      // Re-run Create button blocking on navigation
+      if (document.documentElement.classList.contains('yt-block-create-button')) {
+        blockCreateButton();
+      }
     }
   });
 
@@ -187,6 +261,10 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
         blockShortsElements();
         startShortsObserver();
       }
+      // Initial Create button blocking
+      if (document.documentElement.classList.contains('yt-block-create-button')) {
+        blockCreateButton();
+      }
     });
   } else {
     observer.observe(document.documentElement, { childList: true, subtree: true });
@@ -194,6 +272,10 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
     if (document.documentElement.classList.contains('yt-block-shorts')) {
       blockShortsElements();
       startShortsObserver();
+    }
+    // Initial Create button blocking
+    if (document.documentElement.classList.contains('yt-block-create-button')) {
+      blockCreateButton();
     }
   }
 })();
