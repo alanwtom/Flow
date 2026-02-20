@@ -1,6 +1,42 @@
 // Browser compatibility
 const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 
+// Debounce utility - delays function execution until after wait milliseconds
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// Write to storage with debouncing to coalesce rapid changes (150ms)
+function debouncedStorageWrite(key, value) {
+  if (pendingStorageWrites.has(key)) {
+    clearTimeout(pendingStorageWrites.get(key).timeoutId);
+  }
+
+  const timeoutId = setTimeout(() => {
+    browserAPI.storage.sync.set({ [key]: value });
+    pendingStorageWrites.delete(key);
+  }, 150);
+
+  pendingStorageWrites.set(key, { value, timeoutId });
+}
+
+// Flush any pending storage writes (called on popup close)
+function flushPendingWrites() {
+  pendingStorageWrites.forEach((data, key) => {
+    clearTimeout(data.timeoutId);
+    browserAPI.storage.sync.set({ [key]: data.value });
+  });
+  pendingStorageWrites.clear();
+}
+
 // Granular blocking options configuration - organized by category
 const SUB_OPTIONS = {
   youtube: {
@@ -59,6 +95,10 @@ const allSites = ['youtube', 'reddit', 'twitter'];
 
 // Current selected site
 let currentSelectedSite = 'global';
+
+// Operation tracking for preventing race conditions
+let pendingRenderId = 0;
+let pendingStorageWrites = new Map();
 
 // Site detection configuration
 const SITE_HOSTS = {
@@ -131,9 +171,16 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function selectSite(site) {
+    // Prevent redundant re-renders
+    if (site === currentSelectedSite) {
+      return;
+    }
+
+    // Cancel any pending render operation
+    pendingRenderId++;
     currentSelectedSite = site;
 
-    // Update display
+    // Update display immediately
     dropdownSelected.textContent = siteDisplayNames[site];
 
     // Update selected item in dropdown
@@ -151,9 +198,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update view
     updateView(site);
 
-    // Render sub-options for individual sites
+    // Render sub-options with cancellation support
     if (site !== 'global') {
-      renderSubOptions(site);
+      renderSubOptions(site, pendingRenderId);
     }
 
     // Load appropriate state
@@ -165,8 +212,8 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Render sub-options for a site with categories
-  function renderSubOptions(site) {
-    subOptionsContainer.innerHTML = '';
+  function renderSubOptions(site, renderId) {
+    const currentRenderId = renderId;
 
     const categories = SUB_OPTIONS[site] || {};
     const categoryEntries = Object.entries(categories);
@@ -179,13 +226,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load all settings at once
     browserAPI.storage.sync.get(allKeys, (result) => {
+      // Check if this render is still valid
+      if (renderId !== pendingRenderId) return;
+
+      subOptionsContainer.innerHTML = '';
+
+      const fragment = document.createDocumentFragment();
+
       categoryEntries.forEach(([categoryName, options]) => {
         // Add category header
         if (categoryEntries.length > 1) {
           const categoryHeader = document.createElement('div');
           categoryHeader.className = 'sub-category-title';
           categoryHeader.textContent = categoryName;
-          subOptionsContainer.appendChild(categoryHeader);
+          fragment.appendChild(categoryHeader);
         }
 
         // Add options for this category
@@ -204,14 +258,19 @@ document.addEventListener('DOMContentLoaded', function() {
           // Use default if not set
           checkbox.checked = result[opt.key] !== undefined ? result[opt.key] === true : opt.default;
 
-          // Add change listener
+          // Add change listener with debounced storage write
           checkbox.addEventListener('change', () => {
-            browserAPI.storage.sync.set({ [opt.key]: checkbox.checked });
+            debouncedStorageWrite(opt.key, checkbox.checked);
           });
 
-          subOptionsContainer.appendChild(div);
+          fragment.appendChild(div);
         });
       });
+
+      // One final check before appending
+      if (renderId === pendingRenderId) {
+        subOptionsContainer.appendChild(fragment);
+      }
     });
   }
 
@@ -278,7 +337,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Render sub-options for individual sites
       if (selectedSite !== 'global') {
-        renderSubOptions(selectedSite);
+        renderSubOptions(selectedSite, pendingRenderId);
       }
 
       // Load new tab blocker state
@@ -293,15 +352,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Global blocker: enables/disables all site blockers
   globalBlockerCheckbox.addEventListener('change', function() {
-    const state = {};
+    const enabled = this.checked;
     allSites.forEach(site => {
-      state[getSiteBlockerKey(site)] = this.checked;
+      debouncedStorageWrite(getSiteBlockerKey(site), enabled);
     });
-    browserAPI.storage.sync.set(state);
   });
 
   // New tab blocker
   newTabBlockerCheckbox.addEventListener('change', function() {
-    browserAPI.storage.sync.set({ newTabBlockerEnabled: this.checked });
+    debouncedStorageWrite('newTabBlockerEnabled', this.checked);
+  });
+
+  // Flush pending writes when popup closes
+  window.addEventListener('beforeunload', function() {
+    flushPendingWrites();
   });
 });
