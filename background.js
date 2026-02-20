@@ -4,19 +4,24 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 // Background script for handling new tab blocking and site blocking
 let newTabBlockerEnabled = false;
 
-// Badge configuration
-const BADGE_COLORS = {
-  green: '#34A853',   // Active/enabled
-  red: '#EA4335',     // Blocking occurred
-  blue: '#4285F4',    // Multiple features active
-  gray: '#808080'     // Disabled
+// Icon paths
+const ICONS = {
+  inactive: {
+    '16': 'images/bird.png',
+    '48': 'images/bird.png',
+    '128': 'images/bird.png'
+  },
+  active: {
+    '16': 'images/bird-active-16.png',
+    '48': 'images/bird-active-48.png',
+    '128': 'images/bird-active-128.png'
+  }
 };
 
-// Current badge state (avoid unnecessary updates)
-let currentBadgeText = '';
-let currentBadgeColor = '';
+// Current icon state (avoid unnecessary updates)
+let currentIconState = null;
 
-// Granular feature keys for each site (for badge counting)
+// Granular feature keys for each site (for counting active features)
 const SITE_FEATURES = {
   youtube: ['yt_homepage', 'yt_shorts', 'yt_sidebar', 'yt_comments', 'yt_endcards', 'yt_chat', 'yt_notifications', 'yt_create_button', 'yt_autoplay'],
   reddit: ['reddit_feed', 'reddit_trending', 'reddit_awards', 'reddit_chat', 'reddit_sidebar'],
@@ -26,7 +31,7 @@ const SITE_FEATURES = {
 // Initialize settings from storage
 browserAPI.storage.sync.get(['newTabBlockerEnabled'], function(result) {
   newTabBlockerEnabled = result.newTabBlockerEnabled === true;
-  updateBadge();
+  updateIcon();
 });
 
 // Listen for changes to settings
@@ -34,8 +39,8 @@ browserAPI.storage.onChanged.addListener(function(changes, namespace) {
   if (changes.newTabBlockerEnabled) {
     newTabBlockerEnabled = changes.newTabBlockerEnabled.newValue;
   }
-  // Update badge when any setting changes
-  updateBadge();
+  // Update icon when any setting changes
+  updateIcon();
 });
 
 // Track the last active tab
@@ -83,10 +88,10 @@ browserAPI.tabs.onCreated.addListener(async function(tab) {
 });
 
 // ============================================================================
-// Badge System
+// Icon System
 // ============================================================================
 
-function updateBadge() {
+function updateIcon() {
   // Get all granular feature keys
   const allFeatureKeys = Object.values(SITE_FEATURES).flat();
   const storageKeys = [...allFeatureKeys, 'newTabBlockerEnabled'];
@@ -94,47 +99,25 @@ function updateBadge() {
   browserAPI.storage.sync.get(storageKeys, function(result) {
     // Count active granular features per site
     let activeFeaturesCount = 0;
-    let activeSites = [];
 
     for (const [site, features] of Object.entries(SITE_FEATURES)) {
       const siteActiveFeatures = features.filter(f => result[f] === true);
       if (siteActiveFeatures.length > 0) {
         activeFeaturesCount += siteActiveFeatures.length;
-        activeSites.push(site);
       }
     }
 
     const newTabActive = result.newTabBlockerEnabled === true;
     const totalActive = activeFeaturesCount + (newTabActive ? 1 : 0);
 
-    let newText = '';
-    let newColor = BADGE_COLORS.gray;
-
-    if (totalActive === 0) {
-      // All disabled - show nothing
-      newText = '';
-      newColor = BADGE_COLORS.gray;
-    } else if (activeSites.length === 0 && newTabActive) {
-      // Only new tab blocker active
-      newText = 'NT';
-      newColor = BADGE_COLORS.green;
-    } else if (activeSites.length === 1 && !newTabActive) {
-      // Single site with features - show site code
-      const site = activeSites[0];
-      newText = site === 'youtube' ? 'YT' : site.substring(0, 2).toUpperCase();
-      newColor = BADGE_COLORS.green;
-    } else {
-      // Multiple sites/features or new tab + site - show count
-      newText = totalActive <= 9 ? String(totalActive) : '+';
-      newColor = totalActive >= 4 ? BADGE_COLORS.blue : BADGE_COLORS.green;
-    }
+    // Determine if any features are active
+    const isActive = totalActive > 0;
+    const newState = isActive ? 'active' : 'inactive';
 
     // Only update if changed (prevents flicker)
-    if (newText !== currentBadgeText || newColor !== currentBadgeColor) {
-      browserAPI.action.setBadgeText({ text: newText });
-      browserAPI.action.setBadgeBackgroundColor({ color: newColor });
-      currentBadgeText = newText;
-      currentBadgeColor = newColor;
+    if (newState !== currentIconState) {
+      browserAPI.action.setIcon({ path: ICONS[newState] });
+      currentIconState = newState;
     }
   });
 }
@@ -229,5 +212,5 @@ function pauseBlocking(minutes) {
   browserAPI.storage.sync.set({ pausedUntil: pausedUntil });
 }
 
-// Initialize badge on startup
-updateBadge();
+// Initialize icon on startup
+updateIcon();
