@@ -38,9 +38,8 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
       document.documentElement.classList.toggle('yt-block-autoplay', result.yt_autoplay && !isPaused);
 
       // Immediately apply JavaScript-based blocking for features that need it
-      if (result.yt_create_button && !isPaused) {
-        blockCreateButton();
-      }
+      // Always call blockCreateButton to handle both enable and disable
+      blockCreateButton();
       if (result.yt_shorts && !isPaused) {
         blockShortsElements();
       }
@@ -61,54 +60,50 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
     // Find all topbar menu button renderers
     const topbarButtons = document.querySelectorAll('ytd-topbar-menu-button-renderer');
     topbarButtons.forEach(el => {
-      const wasBlocked = el.hasAttribute('data-flow-blocked') && el.getAttribute('data-flow-blocked') === 'create-button';
+      const button = el.querySelector('button');
+      if (!button) return;
 
-      if (shouldBlock) {
-        // Check if this is the create button by examining its contents
-        const button = el.querySelector('button');
-        if (button) {
-          const ariaLabel = button.getAttribute('aria-label') || '';
-          // Check for various create button identifiers
-          const svg = button.querySelector('svg');
-          if (svg) {
-            const paths = svg.querySelectorAll('path');
-            let hasCameraIcon = false;
-            paths.forEach(path => {
-              const d = path.getAttribute('d') || '';
-              // Create button has a camera icon with specific path data
-              if (d.includes('M17 10.5') || d.includes('V7c0-.55') || d.includes('c0-.55-.45-1-1-1H4c')) {
-                hasCameraIcon = true;
-              }
-            });
-            // Hide if it has the camera icon OR has create in aria-label
-            if (hasCameraIcon || ariaLabel.toLowerCase().includes('create')) {
-              el.style.display = 'none';
-              el.setAttribute('data-flow-blocked', 'create-button');
-            }
-          } else if (ariaLabel.toLowerCase().includes('create')) {
-            // Fallback: just by aria-label
-            el.style.display = 'none';
-            el.setAttribute('data-flow-blocked', 'create-button');
-          }
-        }
-      } else if (wasBlocked) {
-        // Restore the button if blocking is disabled
+      const ariaLabel = (button.getAttribute('aria-label') || '').toLowerCase();
+      const isCreateButton = ariaLabel.includes('create') || isCameraIcon(el);
+
+      if (shouldBlock && isCreateButton) {
+        // Mark the element for CSS targeting and hide via inline style
+        el.setAttribute('data-flow-create-button', '');
+        el.style.display = 'none';
+      } else if (!shouldBlock && el.hasAttribute('data-flow-create-button')) {
+        // Restore the button
+        el.removeAttribute('data-flow-create-button');
         el.style.display = '';
-        el.removeAttribute('data-flow-blocked');
       }
     });
 
-    // Fallback: Try to find by specific ID or class
+    // Fallback: Try to find by specific ID
     const uploadBtn = document.querySelector('#upload-btn');
     if (uploadBtn) {
       if (shouldBlock) {
+        uploadBtn.setAttribute('data-flow-create-button', '');
         uploadBtn.style.display = 'none';
-        uploadBtn.setAttribute('data-flow-blocked', 'create-button');
-      } else {
+      } else if (uploadBtn.hasAttribute('data-flow-create-button')) {
+        uploadBtn.removeAttribute('data-flow-create-button');
         uploadBtn.style.display = '';
-        uploadBtn.removeAttribute('data-flow-blocked');
       }
     }
+  }
+
+  // Helper to detect camera icon (Create button)
+  function isCameraIcon(element) {
+    const svg = element.querySelector('svg');
+    if (!svg) return false;
+
+    const paths = svg.querySelectorAll('path');
+    for (const path of paths) {
+      const d = path.getAttribute('d') || '';
+      // Create button camera icon path patterns
+      if (d.includes('M17 10.5') || d.includes('V7c0-.55') || d.includes('c0-.55-.45-1-1-1H4c')) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // Aggressive Shorts blocking via JavaScript

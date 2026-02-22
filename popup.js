@@ -350,12 +350,21 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // Global blocker: enables/disables all site blockers
+  // Global blocker: enables/disables all site blockers, their sub-options, and new tab blocker
   globalBlockerCheckbox.addEventListener('change', function() {
     const enabled = this.checked;
     allSites.forEach(site => {
+      // Enable/disable the main site blocker
       debouncedStorageWrite(getSiteBlockerKey(site), enabled);
+      // Also enable/disable all sub-options for this site
+      const categories = SUB_OPTIONS[site] || {};
+      Object.values(categories).flat().forEach(opt => {
+        debouncedStorageWrite(opt.key, enabled);
+      });
     });
+    // Also enable/disable the new tab blocker
+    newTabBlockerCheckbox.checked = enabled;
+    debouncedStorageWrite('newTabBlockerEnabled', enabled);
   });
 
   // New tab blocker

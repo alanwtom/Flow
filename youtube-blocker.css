@@ -92,16 +92,13 @@ html.yt-block-notifications ytd-topbar-menu-button-renderer:has(button[aria-labe
   display: none !important;
 }
 
-/* Create Button and other misc header buttons */
+/* Create Button - use broad targeting with JS assistance */
+html.yt-block-create-button [data-flow-create-button],
 html.yt-block-create-button ytd-topbar-menu-button-renderer:has(button[aria-label*="Create"]),
 html.yt-block-create-button ytd-topbar-menu-button-renderer:has(button[aria-label*="create"]),
 html.yt-block-create-button #upload-btn,
-html.yt-block-create-button ytd-button:has yt-icon[path*="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"],
-html.yt-block-create-button ytd-topbar-menu-button-renderer:has(yt-button-shape),
-html.yt-block-create-button ytd-topbar-menu-button-renderer:has(.yt-spec-icon-shape),
-/* Fallback: target by position (usually second-to-last button in topbar) */
-html.yt-block-create-button #topbar ytd-topbar-menu-button-renderer:nth-last-of-type(2),
-html.yt-block-create-button #container ytd-topbar-menu-button-renderer:has(svg path[d*="M17 10.5"]) {
+html.yt-block-create-button ytd-topbar-menu-button-renderer:has(yt-icon-shape button[aria-label]),
+html.yt-block-create-button ytd-topbar-menu-button-renderer:has(svg path[d*="M17 10.5"]) {
   display: none !important;
 }
 
