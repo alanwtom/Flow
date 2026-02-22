@@ -57,14 +57,15 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
   function blockCreateButton() {
     const shouldBlock = document.documentElement.classList.contains('yt-block-create-button');
 
-    // Find all topbar menu button renderers
-    const topbarButtons = document.querySelectorAll('ytd-topbar-menu-button-renderer');
+    // Find all topbar menu button renderers and button shapes
+    const topbarButtons = document.querySelectorAll('ytd-topbar-menu-button-renderer, yt-button-shape');
     topbarButtons.forEach(el => {
-      const button = el.querySelector('button');
+      const button = el.tagName === 'YT-BUTTON-SHAPE' ? el.querySelector('button') || el : el.querySelector('button');
       if (!button) return;
 
       const ariaLabel = (button.getAttribute('aria-label') || '').toLowerCase();
-      const isCreateButton = ariaLabel.includes('create') || isCameraIcon(el);
+      const title = (button.getAttribute('title') || '').toLowerCase();
+      const isCreateButton = ariaLabel.includes('create') || title.includes('create') || isCameraIcon(el);
 
       if (shouldBlock && isCreateButton) {
         // Mark the element for CSS targeting and hide via inline style

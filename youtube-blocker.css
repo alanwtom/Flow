@@ -96,9 +96,13 @@ html.yt-block-notifications ytd-topbar-menu-button-renderer:has(button[aria-labe
 html.yt-block-create-button [data-flow-create-button],
 html.yt-block-create-button ytd-topbar-menu-button-renderer:has(button[aria-label*="Create"]),
 html.yt-block-create-button ytd-topbar-menu-button-renderer:has(button[aria-label*="create"]),
+html.yt-block-create-button yt-button-shape:has(button[aria-label*="Create"]),
+html.yt-block-create-button yt-button-shape:has(button[aria-label*="create"]),
+html.yt-block-create-button yt-button-shape:has(button[title*="Create"]),
+html.yt-block-create-button yt-button-shape:has(button[title*="create"]),
 html.yt-block-create-button #upload-btn,
-html.yt-block-create-button ytd-topbar-menu-button-renderer:has(yt-icon-shape button[aria-label]),
-html.yt-block-create-button ytd-topbar-menu-button-renderer:has(svg path[d*="M17 10.5"]) {
+html.yt-block-create-button ytd-topbar-menu-button-renderer:has(svg path[d*="M17 10.5"]),
+html.yt-block-create-button yt-button-shape:has(svg path[d*="M17 10.5"]) {
   display: none !important;
 }
 
