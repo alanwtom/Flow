@@ -94,6 +94,11 @@
       font-size: 12px;
       font-weight: 400;
       color: #b0b0b0;
+      /* Handle long text gracefully */
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 200px;
     }
 
     .title {
@@ -298,6 +303,11 @@
     .sub-option-label {
       font-size: 12px;
       color: #b0b0b0;
+      /* Handle long text gracefully */
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 180px;
     }
 
     .sub-option .checkbox-container {
@@ -359,7 +369,7 @@
   <div class="container">
     <div class="title">
       <span>Flow</span>
-      <img src="images/cockatiel.gif" alt="gif" class="title-gif">
+      <img src="images/cockatiel.gif" alt="Flow mascot cockatiel" class="title-gif">
     </div>
 
     <div class="dropdown" id="site-dropdown">
@@ -371,7 +381,6 @@
         <div class="dropdown-item selected" data-value="global">Global Settings</div>
         <div class="dropdown-item" data-value="youtube">YouTube</div>
         <div class="dropdown-item" data-value="reddit">Reddit</div>
-        <div class="dropdown-item" data-value="twitter">Twitter</div>
       </div>
     </div>
 

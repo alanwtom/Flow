@@ -2,17 +2,16 @@
   "manifest_version": 3,
   "name": "Flow",
   "version": "2.0",
-  "description": "Block distractions on YouTube, Reddit, and Twitter/X",
+  "description": "Block distractions on YouTube and Reddit",
+  "author": "Flow Extension",
+  "homepage_url": "https://github.com/alanphoon/Flow",
   "permissions": [
     "storage",
-    "tabs",
-    "commands"
+    "tabs"
   ],
   "host_permissions": [
     "*://*.youtube.com/*",
-    "*://*.reddit.com/*",
-    "*://*.twitter.com/*",
-    "*://*.x.com/*"
+    "*://*.reddit.com/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -25,38 +24,11 @@
       "css": ["youtube-blocker.css"]
     },
     {
-      "matches": [
-        "*://*.reddit.com/*",
-        "*://*.twitter.com/*",
-        "*://*.x.com/*"
-      ],
+      "matches": ["*://*.reddit.com/*"],
       "js": ["social-blocker.js"],
       "css": ["social-blocker.css"]
     }
   ],
-  "commands": {
-    "toggle-all": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+B",
-        "mac": "Command+Shift+B"
-      },
-      "description": "Toggle all blockers"
-    },
-    "pause-30min": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+P",
-        "mac": "Command+Shift+P"
-      },
-      "description": "Pause blocking for 30 minutes"
-    },
-    "toggle-current-site": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+S",
-        "mac": "Command+Shift+S"
-      },
-      "description": "Toggle blocker for current site"
-    }
-  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

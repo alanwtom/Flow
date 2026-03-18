@@ -3,53 +3,33 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 
 // YouTube FYP Blocker Content Script
 (function() {
-  let indicatorElement = null;
-
   // Granular feature storage keys
   const YOUTUBE_FEATURES = [
     'yt_homepage', 'yt_shorts', 'yt_posts', 'yt_sidebar', 'yt_comments',
     'yt_endcards', 'yt_chat', 'yt_notifications', 'yt_create_button', 'yt_autoplay'
   ];
 
-  // Indicator functions (disabled - badge removed)
-  function showIndicator() {
-    // Badge removed - no-op
-  }
-
-  function hideIndicator() {
-    // Badge removed - no-op
-  }
-
   // Apply blocking based on individual settings
   function updateYouTubeBlocking() {
-    browserAPI.storage.sync.get([...YOUTUBE_FEATURES, 'pausedUntil'], function(result) {
-      const isPaused = result.pausedUntil && Date.now() < result.pausedUntil;
-
+    browserAPI.storage.sync.get(YOUTUBE_FEATURES, function(result) {
       // Apply classes for each enabled feature
-      document.documentElement.classList.toggle('yt-block-homepage', result.yt_homepage && !isPaused);
-      document.documentElement.classList.toggle('yt-block-shorts', result.yt_shorts && !isPaused);
-      document.documentElement.classList.toggle('yt-block-posts', result.yt_posts && !isPaused);
-      document.documentElement.classList.toggle('yt-block-sidebar', result.yt_sidebar && !isPaused);
-      document.documentElement.classList.toggle('yt-block-comments', result.yt_comments && !isPaused);
-      document.documentElement.classList.toggle('yt-block-endcards', result.yt_endcards && !isPaused);
-      document.documentElement.classList.toggle('yt-block-chat', result.yt_chat && !isPaused);
-      document.documentElement.classList.toggle('yt-block-notifications', result.yt_notifications && !isPaused);
-      document.documentElement.classList.toggle('yt-block-create-button', result.yt_create_button && !isPaused);
-      document.documentElement.classList.toggle('yt-block-autoplay', result.yt_autoplay && !isPaused);
+      document.documentElement.classList.toggle('yt-block-homepage', result.yt_homepage);
+      document.documentElement.classList.toggle('yt-block-shorts', result.yt_shorts);
+      document.documentElement.classList.toggle('yt-block-posts', result.yt_posts);
+      document.documentElement.classList.toggle('yt-block-sidebar', result.yt_sidebar);
+      document.documentElement.classList.toggle('yt-block-comments', result.yt_comments);
+      document.documentElement.classList.toggle('yt-block-endcards', result.yt_endcards);
+      document.documentElement.classList.toggle('yt-block-chat', result.yt_chat);
+      document.documentElement.classList.toggle('yt-block-notifications', result.yt_notifications);
+      document.documentElement.classList.toggle('yt-block-create-button', result.yt_create_button);
+      document.documentElement.classList.toggle('yt-block-autoplay', result.yt_autoplay);
 
       // Immediately apply JavaScript-based blocking for features that need it
       // Always call blockCreateButton to handle both enable and disable
       blockCreateButton();
-      if (result.yt_shorts && !isPaused) {
+      if (result.yt_shorts) {
         blockShortsElements();
       }
-
-      // Show indicator if anything is blocked
-      const anythingBlocked = YOUTUBE_FEATURES.some(key =>
-        result[key] === true && !isPaused
-      );
-      if (anythingBlocked) showIndicator();
-      else hideIndicator();
     });
   }
 
@@ -211,19 +191,19 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 
   // Listen for changes to any YouTube feature setting
   browserAPI.storage.onChanged.addListener(function(changes, namespace) {
-    const hasRelevantChange = YOUTUBE_FEATURES.some(key => changes[key]) || changes.pausedUntil;
+    const hasRelevantChange = YOUTUBE_FEATURES.some(key => changes[key]);
     if (hasRelevantChange) {
       updateYouTubeBlocking();
       // Always call these when their settings change (to handle both enable and disable)
-      if (changes.yt_shorts || changes.pausedUntil) {
-        browserAPI.storage.sync.get(['yt_shorts', 'pausedUntil'], function(result) {
-          if (result.yt_shorts && !result.pausedUntil) {
+      if (changes.yt_shorts) {
+        browserAPI.storage.sync.get(['yt_shorts'], function(result) {
+          if (result.yt_shorts) {
             blockShortsElements();
             startShortsObserver();
           }
         });
       }
-      if (changes.yt_create_button || changes.pausedUntil) {
+      if (changes.yt_create_button) {
         blockCreateButton(); // This now handles both enable and disable
       }
     }

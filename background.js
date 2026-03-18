@@ -24,23 +24,32 @@ let currentIconState = null;
 // Granular feature keys for each site (for counting active features)
 const SITE_FEATURES = {
   youtube: ['yt_homepage', 'yt_shorts', 'yt_sidebar', 'yt_comments', 'yt_endcards', 'yt_chat', 'yt_notifications', 'yt_create_button', 'yt_autoplay'],
-  reddit: ['reddit_feed', 'reddit_trending', 'reddit_awards', 'reddit_chat', 'reddit_sidebar'],
-  twitter: ['twitter_foryou', 'twitter_following', 'twitter_trends', 'twitter_suggestions', 'twitter_communities', 'twitter_topics']
+  reddit: ['reddit_feed', 'reddit_recent', 'reddit_comments', 'reddit_right_sidebar', 'reddit_nav']
 };
 
 // Initialize settings from storage
 browserAPI.storage.sync.get(['newTabBlockerEnabled'], function(result) {
-  newTabBlockerEnabled = result.newTabBlockerEnabled === true;
-  updateIcon();
+  try {
+    newTabBlockerEnabled = result.newTabBlockerEnabled === true;
+    updateIcon();
+  } catch (error) {
+    console.error('[Flow] Error initializing settings:', error);
+  }
+}).catch(error => {
+  console.error('[Flow] Storage read failed during initialization:', error);
 });
 
 // Listen for changes to settings
 browserAPI.storage.onChanged.addListener(function(changes, namespace) {
-  if (changes.newTabBlockerEnabled) {
-    newTabBlockerEnabled = changes.newTabBlockerEnabled.newValue;
+  try {
+    if (changes.newTabBlockerEnabled) {
+      newTabBlockerEnabled = changes.newTabBlockerEnabled.newValue;
+    }
+    // Update icon when any setting changes
+    updateIcon();
+  } catch (error) {
+    console.error('[Flow] Error handling storage change:', error);
   }
-  // Update icon when any setting changes
-  updateIcon();
 });
 
 // Track the last active tab
@@ -48,13 +57,25 @@ let lastActiveTabId = null;
 
 // Update the last active tab when tabs change
 browserAPI.tabs.onActivated.addListener(function(activeInfo) {
-  lastActiveTabId = activeInfo.tabId;
+  try {
+    if (activeInfo && activeInfo.tabId) {
+      lastActiveTabId = activeInfo.tabId;
+    }
+  } catch (error) {
+    console.error('[Flow] Error tracking active tab:', error);
+  }
 });
 
 // Handle new tab creation
 browserAPI.tabs.onCreated.addListener(async function(tab) {
   // Only block if the feature is enabled
   if (!newTabBlockerEnabled) return;
+
+  // Guard: ensure tab exists and has valid ID
+  if (!tab || !tab.id) {
+    console.warn('[Flow] Invalid tab object in onCreated');
+    return;
+  }
 
   // Check if this is a new tab or about:blank
   const newTabUrls = [
@@ -73,16 +94,28 @@ browserAPI.tabs.onCreated.addListener(async function(tab) {
   );
   if (isNewTab) {
     try {
-      // First switch back to the last active tab
-      if (lastActiveTabId !== null) {
-        await browserAPI.tabs.update(lastActiveTabId, { active: true });
+      let targetTabId = lastActiveTabId;
+
+      // If we don't have a last active tab (e.g., on startup), try to find another tab
+      if (targetTabId === null) {
+        const allTabs = await browserAPI.tabs.query({ currentWindow: true });
+        // Filter out the new tab we're about to close
+        const otherTabs = allTabs.filter(t => t.id !== tab.id);
+        if (otherTabs.length > 0) {
+          // Use the most recently active tab
+          targetTabId = otherTabs[0].id;
+        }
       }
 
-      // Then close the new tab
-      await browserAPI.tabs.remove(tab.id);
+      // Only close the tab if we have a valid tab to switch to
+      if (targetTabId !== null) {
+        await browserAPI.tabs.update(targetTabId, { active: true });
+        await browserAPI.tabs.remove(tab.id);
+      }
+      // If there's no other tab, keep the new tab open rather than leaving user with no tab
     } catch (error) {
-      // Ignore errors if tab was already closed
-      console.error('Error handling tab:', error);
+      // Ignore errors if tab was already closed or doesn't exist
+      console.error('[Flow] Error handling tab:', error);
     }
   }
 });
@@ -97,119 +130,37 @@ function updateIcon() {
   const storageKeys = [...allFeatureKeys, 'newTabBlockerEnabled'];
 
   browserAPI.storage.sync.get(storageKeys, function(result) {
-    // Count active granular features per site
-    let activeFeaturesCount = 0;
+    try {
+      // Count active granular features per site
+      let activeFeaturesCount = 0;
 
-    for (const [site, features] of Object.entries(SITE_FEATURES)) {
-      const siteActiveFeatures = features.filter(f => result[f] === true);
-      if (siteActiveFeatures.length > 0) {
-        activeFeaturesCount += siteActiveFeatures.length;
-      }
-    }
-
-    const newTabActive = result.newTabBlockerEnabled === true;
-    const totalActive = activeFeaturesCount + (newTabActive ? 1 : 0);
-
-    // Determine if any features are active
-    const isActive = totalActive > 0;
-    const newState = isActive ? 'active' : 'inactive';
-
-    // Only update if changed (prevents flicker)
-    if (newState !== currentIconState) {
-      browserAPI.action.setIcon({ path: ICONS[newState] });
-      currentIconState = newState;
-    }
-  });
-}
-
-// ============================================================================
-// Command Handlers
-// ============================================================================
-
-browserAPI.commands.onCommand.addListener(function(command) {
-  switch (command) {
-    case 'toggle-all':
-      toggleAllBlockers();
-      break;
-    case 'pause-30min':
-      pauseBlocking(30);
-      break;
-    case 'toggle-current-site':
-      // Get active tab and toggle its site blocker
-      browserAPI.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-        if (tabs[0]) {
-          const site = detectSiteFromUrl(tabs[0].url);
-          if (site) {
-            toggleSiteBlocker(site);
-          }
+      for (const [site, features] of Object.entries(SITE_FEATURES)) {
+        const siteActiveFeatures = features.filter(f => result[f] === true);
+        if (siteActiveFeatures.length > 0) {
+          activeFeaturesCount += siteActiveFeatures.length;
         }
-      });
-      break;
-  }
-});
-
-// Detect site from URL
-function detectSiteFromUrl(url) {
-  if (!url) return null;
-  try {
-    const hostname = new URL(url).hostname;
-    if (hostname.includes('youtube.com')) return 'youtube';
-    if (hostname.includes('reddit.com')) return 'reddit';
-    if (hostname.includes('twitter.com') || hostname.includes('x.com')) return 'twitter';
-  } catch (e) {}
-  return null;
-}
-
-// Toggle all blockers (enables/disables default features for each site)
-function toggleAllBlockers() {
-  // Get current state of all features
-  const allFeatureKeys = Object.values(SITE_FEATURES).flat();
-  browserAPI.storage.sync.get(allFeatureKeys, function(result) {
-    // Check if all default features are enabled
-    let allDefaultsEnabled = true;
-    let anyFeatureEnabled = false;
-
-    for (const features of Object.values(SITE_FEATURES)) {
-      // Check first feature (typically the main one like feed/FYP)
-      const mainFeature = features[0];
-      if (result[mainFeature] !== true) {
-        allDefaultsEnabled = false;
       }
-      if (features.some(f => result[f] === true)) {
-        anyFeatureEnabled = true;
+
+      const newTabActive = result.newTabBlockerEnabled === true;
+      const totalActive = activeFeaturesCount + (newTabActive ? 1 : 0);
+
+      // Determine if any features are active
+      const isActive = totalActive > 0;
+      const newState = isActive ? 'active' : 'inactive';
+
+      // Only update if changed (prevents flicker)
+      if (newState !== currentIconState) {
+        browserAPI.action.setIcon({ path: ICONS[newState] }).catch(err => {
+          console.error('[Flow] Failed to set icon:', err);
+        });
+        currentIconState = newState;
       }
+    } catch (error) {
+      console.error('[Flow] Error in updateIcon:', error);
     }
-
-    const newState = !allDefaultsEnabled;
-    const updates = {};
-
-    // Set default features (first feature of each site) to the new state
-    for (const features of Object.values(SITE_FEATURES)) {
-      updates[features[0]] = newState;
-    }
-
-    browserAPI.storage.sync.set(updates);
-
+  }).catch(error => {
+    console.error('[Flow] Storage read failed in updateIcon:', error);
   });
-}
-
-// Toggle single site blocker (toggles the main/default feature for that site)
-function toggleSiteBlocker(site) {
-  const features = SITE_FEATURES[site];
-  if (!features) return;
-
-  const mainFeature = features[0]; // First feature is the main one (feed/FYP)
-  browserAPI.storage.sync.get([mainFeature], function(result) {
-    const newState = !result[mainFeature];
-    browserAPI.storage.sync.set({ [mainFeature]: newState });
-
-  });
-}
-
-// Pause blocking
-function pauseBlocking(minutes) {
-  const pausedUntil = Date.now() + (minutes * 60 * 1000);
-  browserAPI.storage.sync.set({ pausedUntil: pausedUntil });
 }
 
 // Initialize icon on startup

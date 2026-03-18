@@ -1,6 +1,9 @@
 // Browser compatibility
 const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 
+// Pending storage writes map (must be declared before functions that use it)
+let pendingStorageWrites = new Map();
+
 // Debounce utility - delays function execution until after wait milliseconds
 function debounce(func, wait) {
   let timeout;
@@ -21,7 +24,9 @@ function debouncedStorageWrite(key, value) {
   }
 
   const timeoutId = setTimeout(() => {
-    browserAPI.storage.sync.set({ [key]: value });
+    browserAPI.storage.sync.set({ [key]: value }).catch(error => {
+      console.error('[Flow] Failed to save setting:', key, error);
+    });
     pendingStorageWrites.delete(key);
   }, 150);
 
@@ -32,7 +37,9 @@ function debouncedStorageWrite(key, value) {
 function flushPendingWrites() {
   pendingStorageWrites.forEach((data, key) => {
     clearTimeout(data.timeoutId);
-    browserAPI.storage.sync.set({ [key]: data.value });
+    browserAPI.storage.sync.set({ [key]: data.value }).catch(error => {
+      console.error('[Flow] Failed to flush setting:', key, error);
+    });
   });
   pendingStorageWrites.clear();
 }
@@ -60,24 +67,14 @@ const SUB_OPTIONS = {
   reddit: {
     'Feeds': [
       { key: 'reddit_feed', label: 'Home Feed', default: true },
-      { key: 'reddit_trending', label: 'Trending/Popular', default: false }
+      { key: 'reddit_recent', label: 'Recent Posts', default: false }
     ],
-    'Sidebar': [
-      { key: 'reddit_sidebar', label: 'Community Suggestions', default: false },
-      { key: 'reddit_awards', label: 'Awards', default: false },
-      { key: 'reddit_chat', label: 'Chat Widget', default: false }
-    ]
-  },
-  twitter: {
-    'Feeds': [
-      { key: 'twitter_foryou', label: 'For You Timeline', default: true },
-      { key: 'twitter_following', label: 'Following Timeline', default: false }
+    'Post View': [
+      { key: 'reddit_comments', label: 'Comments', default: false },
+      { key: 'reddit_right_sidebar', label: 'Right Sidebar', default: false }
     ],
-    'Sidebar': [
-      { key: 'twitter_trends', label: 'Trends', default: false },
-      { key: 'twitter_suggestions', label: 'Who to Follow', default: false },
-      { key: 'twitter_communities', label: 'Communities', default: false },
-      { key: 'twitter_topics', label: 'Topics', default: false }
+    'Navigation': [
+      { key: 'reddit_nav', label: 'Nav Bar (except search)', default: false }
     ]
   }
 };
@@ -86,25 +83,22 @@ const SUB_OPTIONS = {
 const siteDisplayNames = {
   global: 'Global Settings',
   youtube: 'YouTube',
-  reddit: 'Reddit',
-  twitter: 'Twitter'
+  reddit: 'Reddit'
 };
 
 // All site keys
-const allSites = ['youtube', 'reddit', 'twitter'];
+const allSites = ['youtube', 'reddit'];
 
 // Current selected site
 let currentSelectedSite = 'global';
 
 // Operation tracking for preventing race conditions
 let pendingRenderId = 0;
-let pendingStorageWrites = new Map();
 
 // Site detection configuration
 const SITE_HOSTS = {
   youtube: ['youtube.com', 'www.youtube.com', 'm.youtube.com'],
-  reddit: ['reddit.com', 'www.reddit.com', 'old.reddit.com'],
-  twitter: ['twitter.com', 'x.com', 'mobile.twitter.com']
+  reddit: ['reddit.com', 'www.reddit.com', 'old.reddit.com']
 };
 
 // Detect site from URL
@@ -285,23 +279,31 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // Get storage key for site blocker
-  function getSiteBlockerKey(site) {
-    return site + 'BlockerEnabled';
-  }
-
   // Load all settings
   function loadSettings(callback) {
-    const keys = allSites.map(site => getSiteBlockerKey(site));
-    keys.push('selectedSite', 'newTabBlockerEnabled');
-    browserAPI.storage.sync.get(keys, function(result) {
+    // Get all granular feature keys for checking if features are enabled
+    const allFeatureKeys = Object.values(SUB_OPTIONS)
+      .flatMap(siteOptions => Object.values(siteOptions).flat())
+      .map(opt => opt.key);
+    browserAPI.storage.sync.get([...allFeatureKeys, 'selectedSite', 'newTabBlockerEnabled'], function(result) {
       callback(result);
     });
   }
 
   // Check if all site blockers are enabled
+  // Returns true if the main/default feature for each site is enabled
   function areAllBlockersEnabled(result) {
-    return allSites.every(site => result[getSiteBlockerKey(site)] === true);
+    // For each site, check if its main/default feature (first in Feeds category) is enabled
+    for (const site of allSites) {
+      const categories = SUB_OPTIONS[site];
+      if (categories && categories['Feeds'] && categories['Feeds'].length > 0) {
+        const mainFeature = categories['Feeds'][0]; // First feature is the main one (feed/FYP)
+        if (result[mainFeature.key] !== true) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   // Load saved settings and initialize UI
@@ -310,8 +312,11 @@ document.addEventListener('DOMContentLoaded', function() {
     browserAPI.tabs.query({ active: true, currentWindow: true }, function(tabs) {
       let selectedSite = result.selectedSite || 'global';
 
-      // Auto-detect site and switch to it
-      if (tabs[0]) {
+      // Check for errors and fall back to stored site
+      if (browserAPI.runtime.lastError) {
+        console.warn('[Flow] Could not access active tab:', browserAPI.runtime.lastError.message);
+      } else if (tabs[0]) {
+        // Auto-detect site and switch to it
         const detectedSite = detectSiteFromUrl(tabs[0].url);
         if (detectedSite) {
           selectedSite = detectedSite;
@@ -354,9 +359,7 @@ document.addEventListener('DOMContentLoaded', function() {
   globalBlockerCheckbox.addEventListener('change', function() {
     const enabled = this.checked;
     allSites.forEach(site => {
-      // Enable/disable the main site blocker
-      debouncedStorageWrite(getSiteBlockerKey(site), enabled);
-      // Also enable/disable all sub-options for this site
+      // Enable/disable all sub-options for this site
       const categories = SUB_OPTIONS[site] || {};
       Object.values(categories).flat().forEach(opt => {
         debouncedStorageWrite(opt.key, enabled);

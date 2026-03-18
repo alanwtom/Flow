@@ -7,92 +7,62 @@
    Reddit (reddit-block-*)
    ============================================================================ */
 
-/* Home Feed */
-html.reddit-block-feed body[class*="theme-"] #home-page-list,
-html.reddit-block-feed body[class*="theme-"] .Feed,
-html.reddit-block-feed body[class*="theme-"] [slot="feed"],
-html.reddit-block-feed body[class*="theme-"] shreddit-feed,
-html.reddit-block-feed .Post:not(.PostPage .Post),
-html.reddit-block-feed [data-testid="post"]:not(.PostPage [data-testid="post"]),
+/* Home Feed - New Reddit */
+html.reddit-block-feed [data-testid="frontpage-header"],
+html.reddit-block-feed shreddit-feed,
+html.reddit-block-feed faceplate-tracker[lazy][slot="feed"],
+html.reddit-block-feed [data-testid="post-container"],
+/* Individual posts on home feed (not on post pages) */
+html.reddit-block-feed body:not([class*="PostPage"]) shreddit-post,
+html.reddit-block-feed div[data-testid="post"]:not(.PostPage div[data-testid="post"]),
+html.reddit-block-feed article[data-testid="post"]:not(.PostPage article[data-testid="post"]),
 /* Old Reddit */
 html.reddit-block-feed body.listing-page .content,
-html.reddit-block-feed body[class*="listing-page"] #siteTable {
+html.reddit-block-feed body[class*="listing-page"] #siteTable,
+html.reddit-block-feed #siteTable,
+html.reddit-block-feed .linklisting {
   display: none !important;
 }
 
-/* Trending/Popular */
-html.reddit-block-trending [data-testid="trending-tab"],
-html.reddit-block-trending .shreddit-nav__tabs,
-html.reddit-block-trending [role="tab"][href*="/popular"],
-html.reddit-block-trending a[href*="/popular"] {
+/* Recent Posts - hide by the unique noun attribute */
+html.reddit-block-recent faceplate-tracker[noun="recent_post"],
+html.reddit-block-recent div[slot="posts"] {
   display: none !important;
 }
 
-/* Awards */
-html.reddit-block-awards [data-testid="awards-panel"],
-html.reddit-block-awards .shreddit-awards-widget,
-html.reddit-block-awards [data-click-id="awards"],
-html.reddit-block-awards .Award-icon,
-html.reddit-block-awards .awardings-bar {
+/* Comments */
+html.reddit-block-comments shreddit-comment,
+html.reddit-block-comments shreddit-comment-tree,
+html.reddit-block-comments [data-testid="comment"],
+html.reddit-block-comments [data-testid="comment-tree"],
+html.reddit-block-comments #comments,
+html.reddit-block-comments .commentarea,
+html.reddit-block-comments comments-page-divider,
+html.reddit-block-comments [slot="comment-body"],
+html.reddit-block-comments div[id^="Comment"] {
   display: none !important;
 }
 
-/* Chat Widget */
-html.reddit-block-chat [data-testid="chat-button"],
-html.reddit-block-chat [data-testid="chat-sidebar"],
-html.reddit-block-chat .chat-container,
-html.reddit-block-chat #chat {
+/* Right Sidebar (on post pages) */
+html.reddit-block-right-sidebar shreddit-subreddit-header,
+html.reddit-block-right-sidebar [id-card-widget-id],
+html.reddit-block-right-sidebar faceplate-partial,
+html.reddit-block-right-sidebar .py-md.xs:block:has(shreddit-subreddit-header),
+/* Old Reddit */
+html.reddit-block-right-sidebar .side:not(.listing-page) {
   display: none !important;
 }
 
-/* Sidebar Suggestions */
-html.reddit-block-sidebar [data-testid="recommendations-sidebar"],
-html.reddit-block-sidebar .RecommendedCommunities,
-html.reddit-block-sidebar [data-testid="community-sidebar"],
-html.reddit-block-sidebar .side .login-form-side {
-  display: none !important;
-}
-
-/* ============================================================================
-   Twitter/X (twitter-block-*)
-   ============================================================================ */
-
-/* For You Timeline */
-html.twitter-block-foryou [data-testid="primaryColumn"] > div:has([data-testid="TweetTimeline"]) {
-  display: none !important;
-}
-
-/* Following Timeline */
-html.twitter-block-following [data-testid="timeline"] {
-  display: none !important;
-}
-
-/* Trends ("What's Happening" sidebar) */
-html.twitter-block-trends [data-testid="trends"],
-html.twitter-block-trends .SidebarNav,
-html.twitter-block-trends [aria-label*="Timeline"] + div,
-html.twitter-block-trends section[aria-label*="What's happening"] {
-  display: none !important;
-}
-
-/* Who to Follow (User suggestions) */
-html.twitter-block-suggestions [data-testid="follow-recommendations"],
-html.twitter-block-suggestions [aria-label*="Who to follow"],
-html.twitter-block-suggestions div[data-testid="UserCell"] {
-  display: none !important;
-}
-
-/* Communities */
-html.twitter-block-communities [data-testid="communities"],
-html.twitter-block-communities [aria-label*="Communities"],
-html.twitter-block-communities a[href*="/i/communities"] {
-  display: none !important;
-}
-
-/* Topics */
-html.twitter-block-topics [data-testid="topics"],
-html.twitter-block-topics [aria-label*="Topics"],
-html.twitter-block-topics div:has([href*="/topics"]) {
+/* Nav Bar (except search) */
+html.reddit-block-nav header a:not([data-testid="search"]):not([href*="/search"]),
+html.reddit-block-nav header button:not([aria-label*="search"]):not([aria-label*="Search"]),
+html.reddit-block-nav [data-testid="nav-home"],
+html.reddit-block-nav [data-testid="nav-popular"],
+html.reddit-block-nav [data-testid="nav-all"],
+html.reddit-block-nav [data-testid="notifications-button"],
+html.reddit-block-nav [data-testid="nav-notifications"],
+html.reddit-block-nav button[aria-label*="notification"],
+html.reddit-block-nav shreddit-nav-bar {
   display: none !important;
 }
 
@@ -101,25 +71,14 @@ html.twitter-block-topics div:has([href*="/topics"]) {
    ============================================================================ */
 
 /* Reddit - Legacy single class */
-html.flow-blocker-enabled body[class*="theme-"] #home-page-list,
-html.flow-blocker-enabled body[class*="theme-"] .Feed,
-html.flow-blocker-enabled body[class*="theme-"] [slot="feed"],
-html.flow-blocker-enabled body[class*="theme-"] shreddit-feed,
-html.flow-blocker-enabled .Post:not(.PostPage .Post),
-html.flow-blocker-enabled [data-testid="post"]:not(.PostPage [data-testid="post"]) {
-  display: none !important;
-}
-
-/* Old Reddit - Legacy */
+html.flow-blocker-enabled [data-testid="frontpage-header"],
+html.flow-blocker-enabled shreddit-feed,
+html.flow-blocker-enabled faceplate-tracker[lazy][slot="feed"],
+html.flow-blocker-enabled body:not(.PostPage) shreddit-post,
+html.flow-blocker-enabled div[data-testid="post"]:not(.PostPage div[data-testid="post"]),
+/* Old Reddit */
 html.flow-blocker-enabled body.listing-page .content,
 html.flow-blocker-enabled body[class*="listing-page"] #siteTable {
-  display: none !important;
-}
-
-/* Twitter/X - Legacy single class */
-html.flow-blocker-enabled [data-testid="primaryColumn"] > div:not(:has([data-testid="SearchBox"])),
-html.flow-blocker-enabled [data-testid="primaryTimeline"],
-html.flow-blocker-enabled div[data-testid="tweet"]:not([data-testid="tweetDetail"]) {
   display: none !important;
 }
 
