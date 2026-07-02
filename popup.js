@@ -48,33 +48,46 @@ function flushPendingWrites() {
 const SUB_OPTIONS = {
   youtube: {
     'Feeds': [
-      { key: 'yt_homepage', label: 'Homepage Feed', default: true },
-      { key: 'yt_shorts', label: 'Shorts', default: true },
-      { key: 'yt_posts', label: 'Posts', default: true }
+      { key: 'yt_homepage', label: 'Hide Homepage Feed', default: true },
+      { key: 'yt_shorts', label: 'Hide Shorts', default: true },
+      { key: 'yt_posts', label: 'Hide Community Posts', default: true }
     ],
     'Watch Page': [
-      { key: 'yt_sidebar', label: 'Sidebar (Up Next)', default: true },
-      { key: 'yt_comments', label: 'Comments', default: false },
-      { key: 'yt_endcards', label: 'End Cards', default: false },
-      { key: 'yt_chat', label: 'Live Chat', default: false }
+      { key: 'yt_sidebar', label: 'Hide Sidebar (Up Next)', default: true },
+      { key: 'yt_comments', label: 'Hide Comments', default: false },
+      { key: 'yt_endcards', label: 'Hide End Cards', default: false },
+      { key: 'yt_chat', label: 'Hide Live Chat', default: false }
     ],
     'Other': [
-      { key: 'yt_notifications', label: 'Notifications', default: false },
-      { key: 'yt_create_button', label: 'Create Button', default: false },
-      { key: 'yt_autoplay', label: 'Autoplay', default: false }
+      { key: 'yt_notifications', label: 'Hide Notifications', default: false },
+      { key: 'yt_create_button', label: 'Hide Create Button', default: false },
+      { key: 'yt_autoplay', label: 'Hide Autoplay Toggle', default: false }
     ]
   },
   reddit: {
     'Feeds': [
-      { key: 'reddit_feed', label: 'Home Feed', default: true },
-      { key: 'reddit_recent', label: 'Recent Posts', default: false }
+      { key: 'reddit_feed', label: 'Hide Home Feed', default: true },
+      { key: 'reddit_recent', label: 'Hide Recent Posts', default: false }
     ],
     'Post View': [
-      { key: 'reddit_comments', label: 'Comments', default: false },
-      { key: 'reddit_right_sidebar', label: 'Right Sidebar', default: false }
+      { key: 'reddit_comments', label: 'Hide Comments', default: false },
+      { key: 'reddit_right_sidebar', label: 'Hide Right Sidebar', default: false }
     ],
     'Navigation': [
-      { key: 'reddit_nav', label: 'Nav Bar (except search)', default: false }
+      { key: 'reddit_nav', label: 'Hide Nav Bar (except search)', default: false }
+    ]
+  },
+  x: {
+    'Feeds': [
+      { key: 'x_feed', label: 'Hide Home Feed', default: true }
+    ],
+    'Sidebar Widgets': [
+      { key: 'x_trends', label: 'Hide Trends (What\'s happening)', default: true },
+      { key: 'x_follow', label: 'Hide Who to Follow', default: true }
+    ],
+    'Navigation': [
+      { key: 'x_nav', label: 'Hide Navigation Tabs', default: false },
+      { key: 'x_account_card', label: 'Hide Account Card (PFP & Handle)', default: false }
     ]
   }
 };
@@ -83,11 +96,12 @@ const SUB_OPTIONS = {
 const siteDisplayNames = {
   global: 'Global Settings',
   youtube: 'YouTube',
-  reddit: 'Reddit'
+  reddit: 'Reddit',
+  x: 'X / Twitter'
 };
 
 // All site keys
-const allSites = ['youtube', 'reddit'];
+const allSites = ['youtube', 'reddit', 'x'];
 
 // Current selected site
 let currentSelectedSite = 'global';
@@ -98,7 +112,8 @@ let pendingRenderId = 0;
 // Site detection configuration
 const SITE_HOSTS = {
   youtube: ['youtube.com', 'www.youtube.com', 'm.youtube.com'],
-  reddit: ['reddit.com', 'www.reddit.com', 'old.reddit.com']
+  reddit: ['reddit.com', 'www.reddit.com', 'old.reddit.com'],
+  x: ['x.com', 'www.x.com', 'twitter.com', 'www.twitter.com']
 };
 
 // Detect site from URL
@@ -236,16 +251,17 @@ document.addEventListener('DOMContentLoaded', function() {
           fragment.appendChild(categoryHeader);
         }
 
-        // Add options for this category
         options.forEach(opt => {
           const div = document.createElement('div');
-          div.className = 'option sub-option';
+          div.className = 'sub-option';
           div.innerHTML = `
-            <label class="checkbox-container">
-              <input type="checkbox" data-key="${opt.key}">
-              <span class="checkmark"></span>
+            <label>
+              <span class="checkbox-container">
+                <input type="checkbox" data-key="${opt.key}">
+                <span class="checkmark"></span>
+              </span>
+              <span class="sub-option-label">${opt.label}</span>
             </label>
-            <span class="option-label sub-option-label">${opt.label}</span>
           `;
 
           const checkbox = div.querySelector(`input[data-key="${opt.key}"]`);

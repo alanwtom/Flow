@@ -21,10 +21,10 @@ const ICONS = {
 // Current icon state (avoid unnecessary updates)
 let currentIconState = null;
 
-// Granular feature keys for each site (for counting active features)
 const SITE_FEATURES = {
   youtube: ['yt_homepage', 'yt_shorts', 'yt_sidebar', 'yt_comments', 'yt_endcards', 'yt_chat', 'yt_notifications', 'yt_create_button', 'yt_autoplay'],
-  reddit: ['reddit_feed', 'reddit_recent', 'reddit_comments', 'reddit_right_sidebar', 'reddit_nav']
+  reddit: ['reddit_feed', 'reddit_recent', 'reddit_comments', 'reddit_right_sidebar', 'reddit_nav'],
+  x: ['x_feed', 'x_trends', 'x_follow', 'x_nav', 'x_account_card']
 };
 
 // Initialize settings from storage

@@ -4,14 +4,65 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Flow</title>
+  <script>
+    if (typeof chrome === 'undefined' || !chrome.storage) {
+      window.chrome = {
+        storage: {
+          sync: {
+            get: function(keys, callback) {
+              const mockData = {
+                selectedSite: 'youtube',
+                newTabBlockerEnabled: true,
+                yt_homepage: true,
+                yt_shorts: true,
+                yt_posts: true,
+                yt_sidebar: true,
+                yt_comments: false,
+                yt_endcards: false,
+                yt_chat: false,
+                yt_notifications: false,
+                yt_create_button: false,
+                yt_autoplay: false
+              };
+              if (typeof keys === 'string') {
+                callback({ [keys]: mockData[keys] });
+              } else if (Array.isArray(keys)) {
+                const res = {};
+                keys.forEach(k => { res[k] = mockData[k]; });
+                callback(res);
+              } else {
+                callback(mockData);
+              }
+            },
+            set: function(data, callback) {
+              if (callback) callback();
+            }
+          }
+        },
+        tabs: {
+          query: function(queryInfo, callback) {
+            callback([{ url: 'https://www.youtube.com/' }]);
+          }
+        },
+        runtime: {
+          lastError: null
+        }
+      };
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     body {
       width: 270px;
       background-color: #121212;
       color: #e0e0e0;
-      font-family: Arial, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       padding: 0;
       margin: 0;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     .container {
@@ -20,8 +71,6 @@
       gap: 11px;
       padding: 10px 12px 12px 12px;
       background-color: #121212;
-      border-bottom-left-radius: 12px;
-      border-bottom-right-radius: 12px;
     }
 
     .option {
@@ -29,6 +78,22 @@
       align-items: center;
       gap: 10px;
       margin-left: 0;
+    }
+
+    .option label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      box-sizing: border-box;
+      transition: background-color 0.1s ease-out;
+    }
+
+    .option label:hover {
+      background-color: #1e1e1e;
     }
 
     .checkbox-container {
@@ -39,12 +104,17 @@
       background-color: #1e1e1e;
       cursor: pointer;
       margin-right: 0;
-      transition: background-color 0.1s ease-out, border-color 0.1s ease-out;
+      transition: background-color 0.1s ease-out, border-color 0.1s ease-out, transform 0.1s ease;
       border-radius: 4px;
+      flex-shrink: 0;
     }
 
-    .checkbox-container:hover {
+    .option label:hover .checkbox-container {
       border-color: #555;
+    }
+
+    .checkbox-container:active {
+      transform: scale(0.95);
     }
 
     .checkbox-container input {
@@ -54,51 +124,59 @@
       width: 100%;
       height: 100%;
       margin: 0;
+      z-index: 1;
     }
 
     .checkmark {
       position: absolute;
       top: 0;
       left: 0;
-      height: 15px;
-      width: 15px;
+      height: 100%;
+      width: 100%;
       background-color: transparent;
       transition: background-color 0.1s ease-out;
       border-radius: 2.8px;
       box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .checkbox-container input:checked ~ .checkmark {
       background-color: #3b82f6;
+      border-color: #3b82f6;
     }
 
     .checkmark:after {
       content: "";
-      position: absolute;
-      left: 5px;
-      top: 1.5px;
       width: 3px;
-      height: 7px;
+      height: 6px;
       border: solid #1e1e1e;
       border-width: 0 2px 2px 0;
-      transform: rotate(45deg);
+      transform: rotate(45deg) translate(-0.5px, -0.5px) scale(0.8);
       opacity: 0;
-      transition: opacity 0.15s ease;
+      transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      position: relative;
     }
 
     .checkbox-container input:checked ~ .checkmark:after {
       opacity: 1;
+      transform: rotate(45deg) translate(-0.5px, -0.5px) scale(1);
     }
 
     .option-label {
       font-size: 12px;
       font-weight: 400;
       color: #b0b0b0;
-      /* Handle long text gracefully */
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       max-width: 200px;
+      transition: color 0.1s ease-out;
+    }
+
+    .option label:hover .option-label {
+      color: #e0e0e0;
     }
 
     .title {
@@ -134,14 +212,15 @@
       border: 1px solid #444;
       border-radius: 4px;
       font-size: 14px;
-      font-family: Arial, sans-serif;
+      font-family: inherit;
       cursor: pointer;
       text-align: left;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      transition: border-color 0.2s ease;
+      transition: border-color 0.2s ease, background-color 0.2s ease;
       flex-shrink: 0;
+      box-sizing: border-box;
     }
 
     .dropdown-trigger:hover {
@@ -150,6 +229,7 @@
 
     .dropdown-trigger.open {
       border-color: #3b82f6;
+      background-color: #1e1e1e;
     }
 
     .dropdown-arrow {
@@ -169,6 +249,12 @@
     }
 
     .dropdown-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      z-index: 100;
+      width: 100%;
+      margin-top: 4px;
       background-color: #1e1e1e;
       border: 1px solid #444;
       border-radius: 4px;
@@ -177,11 +263,12 @@
       transition: max-height 0.25s ease, opacity 0.2s ease;
       opacity: 0;
       flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      box-sizing: border-box;
     }
 
     .dropdown-menu.open {
       max-height: 250px;
-      overflow-y: auto;
       opacity: 1;
       margin-bottom: 8px;
     }
@@ -219,7 +306,7 @@
       gap: 8px;
     }
 
-    /* Global settings section - hidden by default */
+    /* Global settings section */
     .global-settings {
       display: none;
       flex-direction: column;
@@ -230,7 +317,7 @@
       display: flex;
     }
 
-    /* Individual site setting - hidden by default */
+    /* Individual site setting */
     .individual-setting {
       display: none;
       flex-direction: column;
@@ -294,20 +381,36 @@
     }
 
     .sub-option {
+      border-radius: 4px;
+      transition: background-color 0.1s ease-out;
+    }
+
+    .sub-option:hover {
+      background-color: #1e1e1e;
+    }
+
+    .sub-option label {
       display: flex;
       align-items: center;
       gap: 9px;
-      transition: opacity 0.15s ease;
+      padding: 4px 6px;
+      width: 100%;
+      cursor: pointer;
+      box-sizing: border-box;
     }
 
     .sub-option-label {
       font-size: 12px;
       color: #b0b0b0;
-      /* Handle long text gracefully */
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      max-width: 180px;
+      max-width: 210px;
+      transition: color 0.1s ease-out;
+    }
+
+    .sub-option:hover .sub-option-label {
+      color: #e0e0e0;
     }
 
     .sub-option .checkbox-container {
@@ -343,10 +446,10 @@
     }
 
     .sub-options .checkmark:after {
-      left: 4.5px;
-      top: 1.5px;
       width: 3px;
       height: 6px;
+      border-width: 0 1.8px 1.8px 0;
+      position: relative;
     }
 
     /* Category titles within sub-options */
@@ -381,6 +484,7 @@
         <div class="dropdown-item selected" data-value="global">Global Settings</div>
         <div class="dropdown-item" data-value="youtube">YouTube</div>
         <div class="dropdown-item" data-value="reddit">Reddit</div>
+        <div class="dropdown-item" data-value="x">X / Twitter</div>
       </div>
     </div>
 
@@ -388,20 +492,24 @@
     <div class="global-settings" id="global-settings">
       <div class="settings-section-title">BLOCK ALL SITES</div>
       <div class="option">
-        <label class="checkbox-container">
-          <input type="checkbox" id="global-blocker">
-          <span class="checkmark"></span>
+        <label>
+          <span class="checkbox-container">
+            <input type="checkbox" id="global-blocker">
+            <span class="checkmark"></span>
+          </span>
+          <span class="option-label">Enable All Blockers</span>
         </label>
-        <span class="option-label">Enable All Blockers</span>
       </div>
 
       <div class="settings-section-title">GENERAL</div>
       <div class="option">
-        <label class="checkbox-container">
-          <input type="checkbox" id="new-tab-blocker">
-          <span class="checkmark"></span>
+        <label>
+          <span class="checkbox-container">
+            <input type="checkbox" id="new-tab-blocker">
+            <span class="checkmark"></span>
+          </span>
+          <span class="option-label">Block New Tabs</span>
         </label>
-        <span class="option-label">Block New Tabs</span>
       </div>
     </div>
 

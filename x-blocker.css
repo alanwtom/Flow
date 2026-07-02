@@ -1,0 +1,33 @@
+/* ============================================================================
+   Flow X/Twitter Blocker - Granular Feature CSS
+   Applied when per-feature classes are present on <html>
+   ============================================================================ */
+
+/* Home Feed - hides the main timeline feed on /home */
+html.x-block-feed [aria-label="Timeline: Your Home Timeline"],
+html.x-block-feed [data-testid="primaryColumn"] section {
+  display: none !important;
+}
+
+/* Trends ("What's happening") */
+html.x-block-trends [aria-label="Timeline: Trending now"],
+html.x-block-trends [data-testid="sidebarColumn"] section:has([href*="/trends"]),
+html.x-block-trends [data-testid="sidebarColumn"] [data-testid="trend"] {
+  display: none !important;
+}
+
+/* Who to Follow */
+html.x-block-follow [aria-label="Who to follow"],
+html.x-block-follow [data-testid="sidebarColumn"] aside {
+  display: none !important;
+}
+
+/* Navigation Links (Hides everything except Home, Explore, Messages, Profile, and compose button) */
+html.x-block-nav header[role="banner"] nav a:not([data-testid="AppTabBar_Home_Link"]):not([data-testid="AppTabBar_Explore_Link"]):not([data-testid="AppTabBar_DirectMessage_Link"]):not([data-testid="AppTabBar_Profile_Link"]):not([data-testid="SideNav_NewTweet_Button"]) {
+  display: none !important;
+}
+
+/* Account Card (PFP and Handle switcher at bottom left) */
+html.x-block-account-card [data-testid="SideNav_AccountSwitcher_Button"] {
+  display: none !important;
+}
