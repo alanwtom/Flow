@@ -1,0 +1,60 @@
+{
+  "manifest_version": 3,
+  "name": "Flow",
+  "version": "2.2",
+  "description": "Block distractions on YouTube, Reddit, and X",
+  "author": "Flow Extension",
+  "homepage_url": "https://github.com/alanphoon/Flow",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "flow@alanwtom",
+      "strict_min_version": "121.0"
+    }
+  },
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "*://*.reddit.com/*",
+    "*://*.x.com/*",
+    "*://*.twitter.com/*"
+  ],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["youtube-blocker.js"],
+      "css": ["youtube-blocker.css"]
+    },
+    {
+      "matches": ["*://*.reddit.com/*"],
+      "js": ["social-blocker.js"],
+      "css": ["social-blocker.css"]
+    },
+    {
+      "matches": [
+        "*://*.x.com/*",
+        "*://*.twitter.com/*"
+      ],
+      "js": ["x-blocker.js"],
+      "css": ["x-blocker.css"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "images/bird.png",
+      "48": "images/bird.png",
+      "128": "images/bird.png"
+    }
+  },
+  "icons": {
+    "16": "images/bird.png",
+    "48": "images/bird.png",
+    "128": "images/bird.png"
+  }
+}
