@@ -50,7 +50,8 @@ const SUB_OPTIONS = {
     'Feeds': [
       { key: 'yt_homepage', label: 'Hide Homepage Feed', default: true },
       { key: 'yt_shorts', label: 'Hide Shorts', default: true },
-      { key: 'yt_posts', label: 'Hide Community Posts', default: true }
+      { key: 'yt_posts', label: 'Hide Community Posts', default: true },
+      { key: 'yt_playables', label: 'Hide Playables (Mini-Games)', default: false }
     ],
     'Watch Page': [
       { key: 'yt_sidebar', label: 'Hide Sidebar (Up Next)', default: true },

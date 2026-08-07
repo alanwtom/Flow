@@ -114,6 +114,21 @@ html.yt-block-autoplay .ytp-autonav-toggle-button {
   display: none !important;
 }
 
+/* Playables - hide the mini-games shelf on the homepage and elsewhere */
+html.yt-block-playables ytd-rich-section-renderer:has([is-mini-game-card-shelf]),
+html.yt-block-playables ytd-rich-section-renderer:has(ytd-mini-game-card-renderer),
+html.yt-block-playables ytd-rich-section-renderer:has(a[href*="/playables"]),
+html.yt-block-playables ytd-rich-shelf-renderer:has([is-mini-game-card-shelf]),
+html.yt-block-playables ytd-rich-shelf-renderer:has(a[href*="/playables"]),
+html.yt-block-playables ytd-rich-item-renderer:has(a[href*="/playables"]),
+html.yt-block-playables ytd-mini-game-card-renderer,
+html.yt-block-playables ytd-mini-game-shelf-renderer,
+/* Playables navigation entries */
+html.yt-block-playables ytd-mini-guide-entry-renderer:has(a[href*="/playables"]),
+html.yt-block-playables ytd-guide-entry-renderer:has(a[href*="/playables"]) {
+  display: none !important;
+}
+
 /* ============================================================================
    Legacy Support - Single class for backward compatibility
    ============================================================================ */

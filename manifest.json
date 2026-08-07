@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Flow",
-  "version": "2.1",
+  "version": "2.2",
   "description": "Block distractions on YouTube, Reddit, and X",
   "author": "Flow Extension",
   "homepage_url": "https://github.com/alanphoon/Flow",

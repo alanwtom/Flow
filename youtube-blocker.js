@@ -6,7 +6,8 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
   // Granular feature storage keys
   const YOUTUBE_FEATURES = [
     'yt_homepage', 'yt_shorts', 'yt_posts', 'yt_sidebar', 'yt_comments',
-    'yt_endcards', 'yt_chat', 'yt_notifications', 'yt_create_button', 'yt_autoplay'
+    'yt_endcards', 'yt_chat', 'yt_notifications', 'yt_create_button', 'yt_autoplay',
+    'yt_playables'
   ];
 
   // Apply blocking based on individual settings
@@ -23,12 +24,16 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
       document.documentElement.classList.toggle('yt-block-notifications', result.yt_notifications);
       document.documentElement.classList.toggle('yt-block-create-button', result.yt_create_button);
       document.documentElement.classList.toggle('yt-block-autoplay', result.yt_autoplay);
+      document.documentElement.classList.toggle('yt-block-playables', result.yt_playables);
 
       // Immediately apply JavaScript-based blocking for features that need it
       // Always call blockCreateButton to handle both enable and disable
       blockCreateButton();
       if (result.yt_shorts) {
         blockShortsElements();
+      }
+      if (result.yt_playables) {
+        blockPlayablesElements();
       }
     });
   }
@@ -150,15 +155,63 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
     });
   }
 
-  // MutationObserver for dynamic Shorts blocking
+  // Aggressive Playables blocking via JavaScript
+  function blockPlayablesElements() {
+    if (!document.documentElement.classList.contains('yt-block-playables')) {
+      return;
+    }
+
+    // Selectors for the Playables shelf/section in various locations
+    const playablesSelectors = [
+      // Playables shelf by mini-game card attribute
+      'ytd-rich-section-renderer:has([is-mini-game-card-shelf])',
+      'ytd-rich-section-renderer:has(ytd-mini-game-card-renderer)',
+      'ytd-rich-shelf-renderer:has([is-mini-game-card-shelf])',
+      // Playables section by links to /playables
+      'ytd-rich-section-renderer:has(a[href*="/playables"])',
+      'ytd-rich-shelf-renderer:has(a[href*="/playables"])',
+      'ytd-rich-item-renderer:has(a[href*="/playables"])',
+      // Direct mini-game card elements
+      'ytd-mini-game-card-renderer',
+      'ytd-mini-game-shelf-renderer',
+      // Navigation entries pointing to Playables
+      'ytd-mini-guide-entry-renderer:has(a[href*="/playables"])',
+      'ytd-guide-entry-renderer:has(a[href*="/playables"])'
+    ];
+
+    playablesSelectors.forEach(selector => {
+      try {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+          el.style.display = 'none';
+          el.setAttribute('data-flow-blocked', 'playables');
+        });
+      } catch (e) {
+        // Selector might be invalid in some contexts, skip it
+      }
+    });
+
+    // Also hide any rich-section whose header/title text mentions "Playables"
+    const richSections = document.querySelectorAll('ytd-rich-section-renderer');
+    richSections.forEach(section => {
+      const headerText = (section.querySelector('#title, #header, h2, ytd-rich-shelf-renderer #title')?.textContent || '').trim();
+      if (/playables/i.test(headerText)) {
+        section.style.display = 'none';
+        section.setAttribute('data-flow-blocked', 'playables');
+      }
+    });
+  }
+
+  // MutationObserver for dynamic Shorts/Playables blocking
   let shortsObserver = null;
   let shortsDebounceTimer = null;
   function startShortsObserver() {
     if (shortsObserver) return;
 
     shortsObserver = new MutationObserver((mutations) => {
-      // Only block if Shorts feature is enabled
-      if (!document.documentElement.classList.contains('yt-block-shorts')) {
+      const shortsEnabled = document.documentElement.classList.contains('yt-block-shorts');
+      const playablesEnabled = document.documentElement.classList.contains('yt-block-playables');
+      if (!shortsEnabled && !playablesEnabled) {
         return;
       }
 
@@ -174,7 +227,8 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
       if (hasNewNodes) {
         if (shortsDebounceTimer) return;
         shortsDebounceTimer = setTimeout(() => {
-          blockShortsElements();
+          if (shortsEnabled) blockShortsElements();
+          if (playablesEnabled) blockPlayablesElements();
           shortsDebounceTimer = null;
         }, 100);
       }
@@ -203,6 +257,14 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
           }
         });
       }
+      if (changes.yt_playables) {
+        browserAPI.storage.sync.get(['yt_playables'], function(result) {
+          if (result.yt_playables) {
+            blockPlayablesElements();
+            startShortsObserver();
+          }
+        });
+      }
       if (changes.yt_create_button) {
         blockCreateButton(); // This now handles both enable and disable
       }
@@ -221,6 +283,11 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
         blockShortsElements();
         startShortsObserver();
       }
+      // Re-run Playables blocking on navigation
+      if (document.documentElement.classList.contains('yt-block-playables')) {
+        blockPlayablesElements();
+        startShortsObserver();
+      }
       // Re-run Create button blocking on navigation
       if (document.documentElement.classList.contains('yt-block-create-button')) {
         blockCreateButton();
@@ -237,6 +304,11 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
         blockShortsElements();
         startShortsObserver();
       }
+      // Initial Playables blocking
+      if (document.documentElement.classList.contains('yt-block-playables')) {
+        blockPlayablesElements();
+        startShortsObserver();
+      }
       // Initial Create button blocking
       if (document.documentElement.classList.contains('yt-block-create-button')) {
         blockCreateButton();
@@ -247,6 +319,11 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
     // Initial Shorts blocking
     if (document.documentElement.classList.contains('yt-block-shorts')) {
       blockShortsElements();
+      startShortsObserver();
+    }
+    // Initial Playables blocking
+    if (document.documentElement.classList.contains('yt-block-playables')) {
+      blockPlayablesElements();
       startShortsObserver();
     }
     // Initial Create button blocking
