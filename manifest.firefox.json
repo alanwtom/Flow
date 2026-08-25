@@ -1,14 +1,18 @@
 {
   "manifest_version": 3,
   "name": "Flow",
-  "version": "2.2",
+  "version": "2.3",
   "description": "Block distractions on YouTube, Reddit, and X",
   "author": "Flow Extension",
-  "homepage_url": "https://github.com/alanphoon/Flow",
+  "homepage_url": "https://github.com/alanwtom/Flow",
   "browser_specific_settings": {
     "gecko": {
       "id": "flow@alanwtom",
-      "strict_min_version": "121.0"
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["none"],
+        "optional": []
+      }
     }
   },
   "permissions": [

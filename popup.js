@@ -33,6 +33,14 @@ function debouncedStorageWrite(key, value) {
   pendingStorageWrites.set(key, { value, timeoutId });
 }
 
+// Drop queued debounced writes without committing them. Used ahead of a bulk
+// write that supersedes them, so a toggle made moments earlier cannot land
+// after the bulk value and undo it.
+function clearPendingWrites() {
+  pendingStorageWrites.forEach(data => clearTimeout(data.timeoutId));
+  pendingStorageWrites.clear();
+}
+
 // Flush any pending storage writes (called on popup close)
 function flushPendingWrites() {
   pendingStorageWrites.forEach((data, key) => {
@@ -103,6 +111,22 @@ const siteDisplayNames = {
 
 // All site keys
 const allSites = ['youtube', 'reddit', 'x'];
+
+// Every blockable feature key, flattened out of SUB_OPTIONS.
+const ALL_FEATURE_KEYS = Object.values(SUB_OPTIONS)
+  .flatMap(siteOptions => Object.values(siteOptions).flat())
+  .map(opt => opt.key);
+
+// The effective value of a feature key that storage has no entry for yet.
+const FEATURE_DEFAULTS = Object.fromEntries(
+  Object.values(SUB_OPTIONS)
+    .flatMap(siteOptions => Object.values(siteOptions).flat())
+    .map(opt => [opt.key, opt.default])
+);
+
+// Where the pre-"Enable All Blockers" state is parked so that toggle stays
+// reversible. See the change handler at the bottom of this file.
+const SNAPSHOT_KEY = 'preEnableAllSnapshot';
 
 // Current selected site
 let currentSelectedSite = 'global';
@@ -214,10 +238,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Load appropriate state
-    loadSettings(function(result) {
+    loadSettings().then(result => {
       if (site === 'global') {
         globalBlockerCheckbox.checked = areAllBlockersEnabled(result);
       }
+    }).catch(error => {
+      console.error('[Flow] Failed to load settings:', error);
     });
   }
 
@@ -235,7 +261,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const allKeys = allOptions.map(opt => opt.key);
 
     // Load all settings at once
-    browserAPI.storage.sync.get(allKeys, (result) => {
+    browserAPI.storage.sync.get(allKeys).then((result) => {
       // Check if this render is still valid
       if (renderId !== pendingRenderId) return;
 
@@ -282,6 +308,8 @@ document.addEventListener('DOMContentLoaded', function() {
       if (renderId === pendingRenderId) {
         subOptionsContainer.appendChild(fragment);
       }
+    }).catch(error => {
+      console.error('[Flow] Failed to render options for', site, error);
     });
   }
 
@@ -296,95 +324,143 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // Load all settings
-  function loadSettings(callback) {
-    // Get all granular feature keys for checking if features are enabled
-    const allFeatureKeys = Object.values(SUB_OPTIONS)
-      .flatMap(siteOptions => Object.values(siteOptions).flat())
-      .map(opt => opt.key);
-    browserAPI.storage.sync.get([...allFeatureKeys, 'selectedSite', 'newTabBlockerEnabled'], function(result) {
-      callback(result);
-    });
+  // Load all settings. Promise-based rather than callback-based: Firefox's
+  // `browser.*` namespace is promise-only and silently ignores a callback.
+  function loadSettings() {
+    return browserAPI.storage.sync.get([
+      ...ALL_FEATURE_KEYS,
+      'selectedSite',
+      'newTabBlockerEnabled'
+    ]);
   }
 
-  // Check if all site blockers are enabled
-  // Returns true if the main/default feature for each site is enabled
+  // Check if all site blockers are enabled.
+  // Mirrors exactly what the "Enable All Blockers" toggle writes: every
+  // sub-option on every site, plus the new tab blocker. This previously only
+  // read the first "Feeds" option per site while the toggle wrote all of them,
+  // so unchecking any other option left the box still showing as checked.
   function areAllBlockersEnabled(result) {
-    // For each site, check if its main/default feature (first in Feeds category) is enabled
-    for (const site of allSites) {
-      const categories = SUB_OPTIONS[site];
-      if (categories && categories['Feeds'] && categories['Feeds'].length > 0) {
-        const mainFeature = categories['Feeds'][0]; // First feature is the main one (feed/FYP)
-        if (result[mainFeature.key] !== true) {
-          return false;
-        }
-      }
-    }
-    return true;
+    return ALL_FEATURE_KEYS.every(key => result[key] === true)
+      && result.newTabBlockerEnabled === true;
   }
 
   // Load saved settings and initialize UI
-  loadSettings(function(result) {
-    // First, detect if we're on a supported site
-    browserAPI.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-      let selectedSite = result.selectedSite || 'global';
+  (async function initialize() {
+    let result;
+    try {
+      result = await loadSettings();
+    } catch (error) {
+      console.error('[Flow] Could not load settings:', error);
+      return;
+    }
 
-      // Check for errors and fall back to stored site
-      if (browserAPI.runtime.lastError) {
-        console.warn('[Flow] Could not access active tab:', browserAPI.runtime.lastError.message);
-      } else if (tabs[0]) {
-        // Auto-detect site and switch to it
+    let selectedSite = result.selectedSite || 'global';
+
+    // Auto-detect the site from the active tab, falling back to the stored
+    // selection if the tab is not readable.
+    try {
+      const tabs = await browserAPI.tabs.query({ active: true, currentWindow: true });
+      if (tabs[0]) {
         const detectedSite = detectSiteFromUrl(tabs[0].url);
         if (detectedSite) {
           selectedSite = detectedSite;
         }
       }
+    } catch (error) {
+      console.warn('[Flow] Could not access active tab:', error);
+    }
 
-      currentSelectedSite = selectedSite;
+    currentSelectedSite = selectedSite;
 
-      // Update dropdown display
-      dropdownSelected.textContent = siteDisplayNames[selectedSite];
+    // Update dropdown display
+    dropdownSelected.textContent = siteDisplayNames[selectedSite];
 
-      // Update selected item in dropdown
-      dropdownItems.forEach(item => {
-        if (item.getAttribute('data-value') === selectedSite) {
-          item.classList.add('selected');
-        } else {
-          item.classList.remove('selected');
-        }
-      });
-
-      // Update view
-      updateView(selectedSite);
-
-      // Render sub-options for individual sites
-      if (selectedSite !== 'global') {
-        renderSubOptions(selectedSite, pendingRenderId);
-      }
-
-      // Load new tab blocker state
-      newTabBlockerCheckbox.checked = result.newTabBlockerEnabled === true;
-
-      // For global mode, set the global blocker checkbox
-      if (selectedSite === 'global') {
-        globalBlockerCheckbox.checked = areAllBlockersEnabled(result);
+    // Update selected item in dropdown
+    dropdownItems.forEach(item => {
+      if (item.getAttribute('data-value') === selectedSite) {
+        item.classList.add('selected');
+      } else {
+        item.classList.remove('selected');
       }
     });
-  });
 
-  // Global blocker: enables/disables all site blockers, their sub-options, and new tab blocker
-  globalBlockerCheckbox.addEventListener('change', function() {
+    // Update view
+    updateView(selectedSite);
+
+    // Render sub-options for individual sites
+    if (selectedSite !== 'global') {
+      renderSubOptions(selectedSite, pendingRenderId);
+    }
+
+    // Load new tab blocker state
+    newTabBlockerCheckbox.checked = result.newTabBlockerEnabled === true;
+
+    // For global mode, set the global blocker checkbox
+    if (selectedSite === 'global') {
+      globalBlockerCheckbox.checked = areAllBlockersEnabled(result);
+    }
+  })();
+
+  // Global blocker: turns on every site blocker plus the new tab blocker, and
+  // remembers the state it replaced so that unchecking *restores* that state
+  // rather than wiping everything to false. Without the snapshot this toggle is
+  // destructive and unrecoverable — one click overwrites every per-site
+  // preference across all three sites with no undo.
+  globalBlockerCheckbox.addEventListener('change', async function() {
     const enabled = this.checked;
-    allSites.forEach(site => {
-      // Enable/disable all sub-options for this site
-      const categories = SUB_OPTIONS[site] || {};
-      Object.values(categories).flat().forEach(opt => {
-        debouncedStorageWrite(opt.key, enabled);
-      });
-    });
-    // Also enable/disable the new tab blocker
-    newTabBlockerCheckbox.checked = enabled;
-    debouncedStorageWrite('newTabBlockerEnabled', enabled);
+    const trackedKeys = [...ALL_FEATURE_KEYS, 'newTabBlockerEnabled'];
+
+    // One bulk set instead of ~20 debounced writes: it supersedes anything
+    // already queued, and costs a single storage.sync write against quota.
+    clearPendingWrites();
+
+    try {
+      if (enabled) {
+        const current = await browserAPI.storage.sync.get(trackedKeys);
+
+        // Record the *effective* value of each key. A key with no stored entry
+        // is sitting at its default, and snapshotting it as false would
+        // silently flip its behaviour when restored.
+        const snapshot = {};
+        ALL_FEATURE_KEYS.forEach(key => {
+          snapshot[key] = current[key] !== undefined
+            ? current[key] === true
+            : FEATURE_DEFAULTS[key] === true;
+        });
+        snapshot.newTabBlockerEnabled = current.newTabBlockerEnabled === true;
+
+        const allOn = {};
+        trackedKeys.forEach(key => { allOn[key] = true; });
+
+        await browserAPI.storage.sync.set({ ...allOn, [SNAPSHOT_KEY]: snapshot });
+        newTabBlockerCheckbox.checked = true;
+      } else {
+        const stored = await browserAPI.storage.sync.get(SNAPSHOT_KEY);
+        const snapshot = stored?.[SNAPSHOT_KEY];
+        const restored = {};
+
+        trackedKeys.forEach(key => {
+          if (snapshot && snapshot[key] !== undefined) {
+            restored[key] = snapshot[key] === true;
+          } else {
+            // No snapshot at all (fresh profile, or already consumed), or a
+            // feature added by an update after the snapshot was taken. Fall
+            // back to that key's default, which for newTabBlockerEnabled and
+            // any unknown key is false — the original behaviour.
+            restored[key] = FEATURE_DEFAULTS[key] === true;
+          }
+        });
+
+        await browserAPI.storage.sync.set(restored);
+        if (snapshot) {
+          // Consumed; the next enable takes a fresh one.
+          await browserAPI.storage.sync.remove(SNAPSHOT_KEY);
+        }
+        newTabBlockerCheckbox.checked = restored.newTabBlockerEnabled;
+      }
+    } catch (error) {
+      console.error('[Flow] Failed to apply "Enable All Blockers":', error);
+    }
   });
 
   // New tab blocker
@@ -392,8 +468,16 @@ document.addEventListener('DOMContentLoaded', function() {
     debouncedStorageWrite('newTabBlockerEnabled', this.checked);
   });
 
-  // Flush pending writes when popup closes
-  window.addEventListener('beforeunload', function() {
-    flushPendingWrites();
+  // Flush pending writes when the popup goes away. `beforeunload` is not
+  // reliably dispatched for extension popups, so a toggle followed by an
+  // immediate dismissal could be lost inside the 150ms debounce window.
+  // `pagehide` fires on teardown and `visibilitychange` covers dismissal paths
+  // that skip it; flushPendingWrites clears the queue, so a double call is a
+  // no-op.
+  window.addEventListener('pagehide', flushPendingWrites);
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'hidden') {
+      flushPendingWrites();
+    }
   });
 });

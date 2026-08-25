@@ -1,8 +1,13 @@
 // Browser compatibility
 const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 
-// Background script for handling new tab blocking and site blocking
-let newTabBlockerEnabled = false;
+// Background script for handling new tab blocking and the toolbar icon state.
+//
+// MV3 note: this context (service worker on Chromium, event page on Gecko) is
+// torn down when idle and restarted on the next event. Nothing here may rely on
+// module-level state surviving between events — anything that must persist is
+// read back from storage. `storage.sync` holds user settings; `storage.session`
+// holds the ephemeral tab history, which should not sync across devices.
 
 // Icon paths
 const ICONS = {
@@ -18,48 +23,93 @@ const ICONS = {
   }
 };
 
-// Current icon state (avoid unnecessary updates)
-let currentIconState = null;
+// Keys in storage.sync that are NOT blockable features. Everything else that is
+// `true` counts as an enabled feature for the purpose of the icon state. Reading
+// storage generically like this means the icon can never fall out of sync with
+// the feature list in popup.js the way a hardcoded copy of it did.
+// `preEnableAllSnapshot` holds an object rather than a boolean so it could never
+// match `=== true` below, but it is listed here so the intent is explicit.
+const NON_FEATURE_KEYS = new Set(['selectedSite', 'preEnableAllSnapshot']);
 
-const SITE_FEATURES = {
-  youtube: ['yt_homepage', 'yt_shorts', 'yt_sidebar', 'yt_comments', 'yt_endcards', 'yt_chat', 'yt_notifications', 'yt_create_button', 'yt_autoplay'],
-  reddit: ['reddit_feed', 'reddit_recent', 'reddit_comments', 'reddit_right_sidebar', 'reddit_nav'],
-  x: ['x_feed', 'x_trends', 'x_follow', 'x_nav', 'x_account_card']
-};
+// New tab pages, by browser family. Gecko browsers (Firefox, Zen, LibreWolf,
+// Waterfox) use about:newtab / about:home — without those the new tab blocker
+// silently does nothing outside Chromium.
+const NEW_TAB_URLS = [
+  // Chromium family
+  'chrome://newtab',
+  'edge://newtab',
+  'brave://newtab',
+  'opera://newtab',
+  'vivaldi://newtab',
+  'arc://newtab',
+  // Gecko family
+  'about:newtab',
+  'about:home',
+  // Both
+  'about:blank'
+];
 
-// Initialize settings from storage
-browserAPI.storage.sync.get(['newTabBlockerEnabled'], function(result) {
+// Most-recently-active tabs, newest first. Two entries is enough: the tab the
+// user was on, plus a spare in case the newest entry turns out to be the very
+// tab we are about to close.
+const ACTIVE_TAB_HISTORY_KEY = 'activeTabHistory';
+const ACTIVE_TAB_HISTORY_LIMIT = 2;
+
+async function readActiveTabHistory() {
   try {
-    newTabBlockerEnabled = result.newTabBlockerEnabled === true;
-    updateIcon();
+    const stored = await browserAPI.storage.session.get(ACTIVE_TAB_HISTORY_KEY);
+    const history = stored?.[ACTIVE_TAB_HISTORY_KEY];
+    return Array.isArray(history) ? history : [];
   } catch (error) {
-    console.error('[Flow] Error initializing settings:', error);
+    // storage.session is unavailable on some builds; fall through to the
+    // lastAccessed-based lookup below rather than failing the whole handler.
+    console.warn('[Flow] Could not read tab history:', error);
+    return [];
   }
-}).catch(error => {
-  console.error('[Flow] Storage read failed during initialization:', error);
-});
+}
 
-// Listen for changes to settings
-browserAPI.storage.onChanged.addListener(function(changes, namespace) {
+async function recordActiveTab(tabId) {
+  const history = await readActiveTabHistory();
+  const next = [tabId, ...history.filter((id) => id !== tabId)]
+    .slice(0, ACTIVE_TAB_HISTORY_LIMIT);
   try {
-    if (changes.newTabBlockerEnabled) {
-      newTabBlockerEnabled = changes.newTabBlockerEnabled.newValue;
+    await browserAPI.storage.session.set({ [ACTIVE_TAB_HISTORY_KEY]: next });
+  } catch (error) {
+    console.warn('[Flow] Could not persist tab history:', error);
+  }
+}
+
+// Pick the tab to fall back to when closing a new tab.
+async function resolveTargetTab(excludeTabId) {
+  const history = await readActiveTabHistory();
+
+  for (const tabId of history) {
+    if (tabId === excludeTabId) continue;
+    try {
+      // Confirm it still exists — a remembered tab may have been closed.
+      await browserAPI.tabs.get(tabId);
+      return tabId;
+    } catch (error) {
+      // Stale entry; try the next one.
     }
-    // Update icon when any setting changes
-    updateIcon();
-  } catch (error) {
-    console.error('[Flow] Error handling storage change:', error);
   }
-});
+
+  // No usable history (typically because the background was restarted). Fall
+  // back to the most recently *accessed* tab. tabs.query returns tab-strip
+  // order, not recency, so sort explicitly instead of taking the first result.
+  const tabs = await browserAPI.tabs.query({ currentWindow: true });
+  const candidates = tabs
+    .filter((t) => t.id !== excludeTabId)
+    .sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0));
+
+  return candidates.length > 0 ? candidates[0].id : null;
+}
 
 // Track the last active tab
-let lastActiveTabId = null;
-
-// Update the last active tab when tabs change
-browserAPI.tabs.onActivated.addListener(function(activeInfo) {
+browserAPI.tabs.onActivated.addListener(async function (activeInfo) {
   try {
-    if (activeInfo && activeInfo.tabId) {
-      lastActiveTabId = activeInfo.tabId;
+    if (activeInfo && typeof activeInfo.tabId === 'number') {
+      await recordActiveTab(activeInfo.tabId);
     }
   } catch (error) {
     console.error('[Flow] Error tracking active tab:', error);
@@ -67,56 +117,36 @@ browserAPI.tabs.onActivated.addListener(function(activeInfo) {
 });
 
 // Handle new tab creation
-browserAPI.tabs.onCreated.addListener(async function(tab) {
-  // Only block if the feature is enabled
-  if (!newTabBlockerEnabled) return;
-
+browserAPI.tabs.onCreated.addListener(async function (tab) {
   // Guard: ensure tab exists and has valid ID
-  if (!tab || !tab.id) {
+  if (!tab || typeof tab.id !== 'number') {
     console.warn('[Flow] Invalid tab object in onCreated');
     return;
   }
 
-  // Check if this is a new tab or about:blank
-  const newTabUrls = [
-    'chrome://newtab',
-    'edge://newtab',
-    'brave://newtab',
-    'opera://newtab',
-    'vivaldi://newtab',
-    'arc://newtab',
-    'about:blank'
-  ];
+  try {
+    // Read the setting per-event rather than from a module-level cache. The
+    // background may have just been restarted *by* this event, in which case a
+    // cached value would still be at its default and the tab would slip through.
+    const { newTabBlockerEnabled } = await browserAPI.storage.sync.get('newTabBlockerEnabled');
+    if (newTabBlockerEnabled !== true) return;
 
-  // Immediately close the tab if it matches any new tab URL
-  const isNewTab = newTabUrls.some((url) =>
-    tab.pendingUrl?.startsWith(url) || tab.url?.startsWith(url)
-  );
-  if (isNewTab) {
-    try {
-      let targetTabId = lastActiveTabId;
+    const isNewTab = NEW_TAB_URLS.some((url) =>
+      tab.pendingUrl?.startsWith(url) || tab.url?.startsWith(url)
+    );
+    if (!isNewTab) return;
 
-      // If we don't have a last active tab (e.g., on startup), try to find another tab
-      if (targetTabId === null) {
-        const allTabs = await browserAPI.tabs.query({ currentWindow: true });
-        // Filter out the new tab we're about to close
-        const otherTabs = allTabs.filter(t => t.id !== tab.id);
-        if (otherTabs.length > 0) {
-          // Use the most recently active tab
-          targetTabId = otherTabs[0].id;
-        }
-      }
+    const targetTabId = await resolveTargetTab(tab.id);
 
-      // Only close the tab if we have a valid tab to switch to
-      if (targetTabId !== null) {
-        await browserAPI.tabs.update(targetTabId, { active: true });
-        await browserAPI.tabs.remove(tab.id);
-      }
-      // If there's no other tab, keep the new tab open rather than leaving user with no tab
-    } catch (error) {
-      // Ignore errors if tab was already closed or doesn't exist
-      console.error('[Flow] Error handling tab:', error);
-    }
+    // If there's no other tab, keep the new tab open rather than leaving the
+    // user with no tab at all.
+    if (targetTabId === null) return;
+
+    await browserAPI.tabs.update(targetTabId, { active: true });
+    await browserAPI.tabs.remove(tab.id);
+  } catch (error) {
+    // Ignore errors if tab was already closed or doesn't exist
+    console.error('[Flow] Error handling tab:', error);
   }
 });
 
@@ -124,44 +154,36 @@ browserAPI.tabs.onCreated.addListener(async function(tab) {
 // Icon System
 // ============================================================================
 
-function updateIcon() {
-  // Get all granular feature keys
-  const allFeatureKeys = Object.values(SITE_FEATURES).flat();
-  const storageKeys = [...allFeatureKeys, 'newTabBlockerEnabled'];
+// Last icon state we set, used to avoid redundant setIcon calls within a single
+// background lifetime. Losing this on restart is harmless — worst case we set
+// the same icon again.
+let currentIconState = null;
 
-  browserAPI.storage.sync.get(storageKeys, function(result) {
-    try {
-      // Count active granular features per site
-      let activeFeaturesCount = 0;
+async function updateIcon() {
+  try {
+    // `null` returns the entire storage area, so no feature list is needed here.
+    const settings = await browserAPI.storage.sync.get(null);
 
-      for (const [site, features] of Object.entries(SITE_FEATURES)) {
-        const siteActiveFeatures = features.filter(f => result[f] === true);
-        if (siteActiveFeatures.length > 0) {
-          activeFeaturesCount += siteActiveFeatures.length;
-        }
-      }
+    const isActive = Object.entries(settings).some(
+      ([key, value]) => value === true && !NON_FEATURE_KEYS.has(key)
+    );
+    const newState = isActive ? 'active' : 'inactive';
 
-      const newTabActive = result.newTabBlockerEnabled === true;
-      const totalActive = activeFeaturesCount + (newTabActive ? 1 : 0);
+    if (newState === currentIconState) return;
 
-      // Determine if any features are active
-      const isActive = totalActive > 0;
-      const newState = isActive ? 'active' : 'inactive';
-
-      // Only update if changed (prevents flicker)
-      if (newState !== currentIconState) {
-        browserAPI.action.setIcon({ path: ICONS[newState] }).catch(err => {
-          console.error('[Flow] Failed to set icon:', err);
-        });
-        currentIconState = newState;
-      }
-    } catch (error) {
-      console.error('[Flow] Error in updateIcon:', error);
-    }
-  }).catch(error => {
-    console.error('[Flow] Storage read failed in updateIcon:', error);
-  });
+    await browserAPI.action.setIcon({ path: ICONS[newState] });
+    currentIconState = newState;
+  } catch (error) {
+    console.error('[Flow] Error in updateIcon:', error);
+  }
 }
+
+// Listen for changes to settings
+browserAPI.storage.onChanged.addListener(function (changes, areaName) {
+  // Tab history lives in storage.session and has no bearing on the icon.
+  if (areaName === 'session') return;
+  updateIcon();
+});
 
 // Initialize icon on startup
 updateIcon();

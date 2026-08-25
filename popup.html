@@ -3,62 +3,91 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
   <title>Flow</title>
-  <script>
-    if (typeof chrome === 'undefined' || !chrome.storage) {
-      window.chrome = {
-        storage: {
-          sync: {
-            get: function(keys, callback) {
-              const mockData = {
-                selectedSite: 'youtube',
-                newTabBlockerEnabled: true,
-                yt_homepage: true,
-                yt_shorts: true,
-                yt_posts: true,
-                yt_sidebar: true,
-                yt_comments: false,
-                yt_endcards: false,
-                yt_chat: false,
-                yt_notifications: false,
-                yt_create_button: false,
-                yt_autoplay: false,
-                yt_playables: false
-              };
-              if (typeof keys === 'string') {
-                callback({ [keys]: mockData[keys] });
-              } else if (Array.isArray(keys)) {
-                const res = {};
-                keys.forEach(k => { res[k] = mockData[k]; });
-                callback(res);
-              } else {
-                callback(mockData);
-              }
-            },
-            set: function(data, callback) {
-              if (callback) callback();
-            }
-          }
-        },
-        tabs: {
-          query: function(queryInfo, callback) {
-            callback([{ url: 'https://www.youtube.com/' }]);
-          }
-        },
-        runtime: {
-          lastError: null
-        }
-      };
-    }
-  </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="popup-init.js"></script>
   <style>
+    /* Inter, bundled locally (fonts/, SIL OFL 1.1 — see fonts/LICENSE.txt).
+       Loading this from fonts.googleapis.com re-introduces two problems: a
+       network request every time the popup opens, and a panel-sizing race
+       where Firefox measures the document before the font arrives, then the
+       text reflows and leaves the panel mis-sized. Single variable file, so
+       one request covers weights 100-900. `block` rather than `swap` because
+       a local file resolves near-instantly and we want the *first* layout to
+       already use Inter metrics — a swap-in reflow is what mis-sizes the panel. */
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: block;
+      src: url('fonts/inter-latin-var.woff2') format('woff2');
+    }
+
+    /* The popup follows the browser theme rather than forcing dark.
+       Firefox paints its native panel (background + 1px border) behind this
+       document, coloured from the *browser's* theme — chrome we cannot style.
+       A forced-dark popup in a light-themed browser therefore shows a light
+       ring around the content. Matching the theme makes that edge blend.
+       --bg tracks the panel background: white in light, near-black in dark. */
+    :root {
+      color-scheme: light dark;
+      background-color: var(--bg);
+      margin: 0;
+      padding: 0;
+
+      --bg: #121212;
+      --surface: #1e1e1e;
+      --surface-hover: #2a2a2a;
+      --border: #444;
+      --border-hover: #555;
+      --divider: #333;
+      --text: #e0e0e0;
+      --text-strong: #fff;
+      --text-muted: #b0b0b0;
+      --text-dim: #888;
+      --text-faint: #666;
+      --accent: #3b82f6;
+      --on-accent: #1e1e1e;
+      --menu-shadow: rgba(0, 0, 0, 0.5);
+
+      /* Motion. --panel-shift is the distance a switching panel travels; it is
+         zeroed under reduced motion so the fade survives but the movement does
+         not. See the @media block below. */
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --panel-shift: -2px;
+    }
+
+    /* Reduced motion: gentler, not absent. Panels still cross-fade so the
+       content swap stays legible, but nothing travels. */
+    @media (prefers-reduced-motion: reduce) {
+      :root {
+        --panel-shift: 0px;
+      }
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #fff;
+        --surface: #f4f4f5;
+        --surface-hover: #e8e8ea;
+        --border: #d4d4d8;
+        --border-hover: #a1a1aa;
+        --divider: #e4e4e7;
+        --text: #18181b;
+        --text-strong: #000;
+        --text-muted: #52525b;
+        --text-dim: #71717a;
+        --text-faint: #a1a1aa;
+        --accent: #2563eb;
+        --on-accent: #fff;
+        --menu-shadow: rgba(0, 0, 0, 0.15);
+      }
+    }
+
     body {
       width: 270px;
-      background-color: #121212;
-      color: #e0e0e0;
+      background-color: var(--bg);
+      color: var(--text);
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       padding: 0;
       margin: 0;
@@ -71,7 +100,7 @@
       flex-direction: column;
       gap: 11px;
       padding: 10px 12px 12px 12px;
-      background-color: #121212;
+      background-color: var(--bg);
     }
 
     .option {
@@ -94,15 +123,15 @@
     }
 
     .option label:hover {
-      background-color: #1e1e1e;
+      background-color: var(--surface);
     }
 
     .checkbox-container {
       position: relative;
       width: 15px;
       height: 15px;
-      border: 1.2px solid #444;
-      background-color: #1e1e1e;
+      border: 1.2px solid var(--border);
+      background-color: var(--surface);
       cursor: pointer;
       margin-right: 0;
       transition: background-color 0.1s ease-out, border-color 0.1s ease-out, transform 0.1s ease;
@@ -111,7 +140,7 @@
     }
 
     .option label:hover .checkbox-container {
-      border-color: #555;
+      border-color: var(--border-hover);
     }
 
     .checkbox-container:active {
@@ -144,15 +173,15 @@
     }
 
     .checkbox-container input:checked ~ .checkmark {
-      background-color: #3b82f6;
-      border-color: #3b82f6;
+      background-color: var(--accent);
+      border-color: var(--accent);
     }
 
     .checkmark:after {
       content: "";
       width: 3px;
       height: 6px;
-      border: solid #1e1e1e;
+      border: solid var(--on-accent);
       border-width: 0 2px 2px 0;
       transform: rotate(45deg) translate(-0.5px, -0.5px) scale(0.8);
       opacity: 0;
@@ -168,7 +197,7 @@
     .option-label {
       font-size: 12px;
       font-weight: 400;
-      color: #b0b0b0;
+      color: var(--text-muted);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -177,14 +206,14 @@
     }
 
     .option label:hover .option-label {
-      color: #e0e0e0;
+      color: var(--text);
     }
 
     .title {
       font-size: 18px;
       margin-bottom: 10px;
-      color: #fff;
-      border-bottom: 1.5px solid #444;
+      color: var(--text-strong);
+      border-bottom: 1.5px solid var(--border);
       padding-bottom: 7px;
       display: flex;
       justify-content: space-between;
@@ -208,9 +237,9 @@
     .dropdown-trigger {
       width: 100%;
       padding: 8px 28px 8px 8px;
-      background-color: #1e1e1e;
-      color: #e0e0e0;
-      border: 1px solid #444;
+      background-color: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
       border-radius: 4px;
       font-size: 14px;
       font-family: inherit;
@@ -219,18 +248,32 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      transition: border-color 0.2s ease, background-color 0.2s ease;
+      transition: border-color 0.2s ease,
+                  background-color 0.2s ease,
+                  transform 160ms var(--ease-out);
       flex-shrink: 0;
       box-sizing: border-box;
+      /* Explicitly positioned so it — not .dropdown — is the containing block
+         for .dropdown-arrow. Without this, the :active transform below would
+         become the arrow's containing block only while pressed, shifting it a
+         pixel on every press. */
+      position: relative;
     }
 
     .dropdown-trigger:hover {
-      border-color: #555;
+      border-color: var(--border-hover);
+    }
+
+    /* Press feedback, matching .checkbox-container:active. 0.99 rather than the
+       checkbox's 0.95: this is a full-width bar, and an identical scale factor
+       reads as a much larger movement on a wide element than on a 15px box. */
+    .dropdown-trigger:active {
+      transform: scale(0.99);
     }
 
     .dropdown-trigger.open {
-      border-color: #3b82f6;
-      background-color: #1e1e1e;
+      border-color: var(--accent);
+      background-color: var(--surface);
     }
 
     .dropdown-arrow {
@@ -238,7 +281,7 @@
       height: 0;
       border-left: 4px solid transparent;
       border-right: 4px solid transparent;
-      border-top: 5px solid #b0b0b0;
+      border-top: 5px solid var(--text-muted);
       transition: transform 0.2s ease;
       position: absolute;
       right: 10px;
@@ -256,15 +299,15 @@
       z-index: 100;
       width: 100%;
       margin-top: 4px;
-      background-color: #1e1e1e;
-      border: 1px solid #444;
+      background-color: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 4px;
       max-height: 0;
       overflow: hidden;
       transition: max-height 0.25s ease, opacity 0.2s ease;
       opacity: 0;
       flex-shrink: 0;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      box-shadow: 0 4px 12px var(--menu-shadow);
       box-sizing: border-box;
     }
 
@@ -277,7 +320,7 @@
     .dropdown-item {
       padding: 8px 10px;
       font-size: 14px;
-      color: #e0e0e0;
+      color: var(--text);
       cursor: pointer;
       transition: background-color 0.15s ease, color 0.15s ease;
       opacity: 0.5;
@@ -285,19 +328,19 @@
     }
 
     .dropdown-item:hover {
-      background-color: #2a2a2a;
+      background-color: var(--surface-hover);
       opacity: 1;
     }
 
     .dropdown-item.selected {
       background-color: transparent;
-      color: #3b82f6;
+      color: var(--accent);
       opacity: 1;
       font-weight: 700;
     }
 
     .dropdown-item.selected:hover {
-      background-color: #2a2a2a;
+      background-color: var(--surface-hover);
     }
 
     /* Individual site blocker option */
@@ -329,16 +372,52 @@
       display: flex;
     }
 
+    /* Switching between Global Settings and a site view swaps the whole panel
+       body — 2 rows for 11, say — and `display` alone gives that no bridge.
+       `allow-discrete` keeps the element rendered for the duration of the fade
+       and @starting-style supplies the entry values, so this needs no JS.
+       Deliberately opacity + transform only: the browser sizes the popup panel
+       from its content, so animating height here would fight the panel's own
+       resize rather than smooth it. The panel's height change stays abrupt —
+       that is browser chrome and is not reachable from this stylesheet. */
+    .global-settings,
+    .individual-setting {
+      opacity: 0;
+      transform: translateY(var(--panel-shift));
+    }
+
+    /* The transition lives here, on the entering state, not on the base rule.
+       Both panels are children of the same flex column, so giving the *outgoing*
+       panel a transition (via `display ... allow-discrete`) would keep it
+       occupying space while the incoming one fades in — the popup would balloon
+       to the height of both panels, then snap back. Only the entry needs a
+       bridge; the outgoing panel is being replaced and can leave instantly. */
+    .global-settings.active,
+    .individual-setting.active {
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 150ms var(--ease-out),
+                  transform 150ms var(--ease-out);
+    }
+
+    @starting-style {
+      .global-settings.active,
+      .individual-setting.active {
+        opacity: 0;
+        transform: translateY(var(--panel-shift));
+      }
+    }
+
     /* Section divider for individual settings */
     .section-divider {
       height: 1px;
-      background-color: #333;
+      background-color: var(--divider);
       margin: 4px 0 6px 0;
     }
 
     .settings-section-title {
       font-size: 11px;
-      color: #888;
+      color: var(--text-dim);
       margin-bottom: 2px;
       margin-top: 2px;
       text-transform: uppercase;
@@ -347,7 +426,7 @@
 
     .blue-line {
       height: 2px;
-      background-color: #3b82f6;
+      background-color: var(--accent);
       margin-top: 10px;
     }
 
@@ -357,16 +436,16 @@
     }
 
     .dropdown-menu::-webkit-scrollbar-track {
-      background: #1e1e1e;
+      background: var(--surface);
     }
 
     .dropdown-menu::-webkit-scrollbar-thumb {
-      background: #444;
+      background: var(--border);
       border-radius: 3px;
     }
 
     .dropdown-menu::-webkit-scrollbar-thumb:hover {
-      background: #555;
+      background: var(--border-hover);
     }
 
     /* Sub-options for granular blocking */
@@ -379,6 +458,10 @@
       padding-right: 2px;
       min-height: 0;
       transition: min-height 0.15s ease;
+      /* Firefox ignores ::-webkit-scrollbar; without this the scroll area
+         renders a default light scrollbar over the themed panel. */
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
     }
 
     .sub-option {
@@ -387,7 +470,7 @@
     }
 
     .sub-option:hover {
-      background-color: #1e1e1e;
+      background-color: var(--surface);
     }
 
     .sub-option label {
@@ -402,7 +485,7 @@
 
     .sub-option-label {
       font-size: 12px;
-      color: #b0b0b0;
+      color: var(--text-muted);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -411,7 +494,7 @@
     }
 
     .sub-option:hover .sub-option-label {
-      color: #e0e0e0;
+      color: var(--text);
     }
 
     .sub-option .checkbox-container {
@@ -423,22 +506,22 @@
     }
 
     .sub-options::-webkit-scrollbar-track {
-      background: #1e1e1e;
+      background: var(--surface);
     }
 
     .sub-options::-webkit-scrollbar-thumb {
-      background: #444;
+      background: var(--border);
       border-radius: 2px;
     }
 
     .sub-options::-webkit-scrollbar-thumb:hover {
-      background: #555;
+      background: var(--border-hover);
     }
 
     .sub-options .checkbox-container {
       width: 14px;
       height: 14px;
-      border: 1px solid #444;
+      border: 1px solid var(--border);
     }
 
     .sub-options .checkmark {
@@ -456,7 +539,7 @@
     /* Category titles within sub-options */
     .sub-category-title {
       font-size: 10px;
-      color: #666;
+      color: var(--text-faint);
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-top: 8px;

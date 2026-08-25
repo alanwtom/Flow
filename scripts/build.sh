@@ -25,7 +25,7 @@ PAYLOAD=(
   "background.js"
   "popup.html"
   "popup.js"
-  "styles.css"
+  "popup-init.js"
   "youtube-blocker.js"
   "youtube-blocker.css"
   "social-blocker.js"
@@ -33,6 +33,7 @@ PAYLOAD=(
   "x-blocker.js"
   "x-blocker.css"
   "images"
+  "fonts"
 )
 
 # Read version once from the canonical manifest.
@@ -46,6 +47,7 @@ CHROMIUM_DIR="$DIST_DIR/chromium"
 for item in "${PAYLOAD[@]}" "manifest.json"; do
   cp -R "$item" "$CHROMIUM_DIR/"
 done
+find "$CHROMIUM_DIR" -name '.DS_Store' -delete
 CHROMIUM_ZIP="flow-chromium-v${VERSION}.zip"
 ( cd "$CHROMIUM_DIR" && zip -qr "$CHROMIUM_ZIP" . && mv "$CHROMIUM_ZIP" "$ROOT_DIR/$DIST_DIR/" )
 echo "✓ Chromium: $DIST_DIR/$CHROMIUM_ZIP"
@@ -58,6 +60,7 @@ for item in "${PAYLOAD[@]}"; do
   cp -R "$item" "$FIREFOX_DIR/"
 done
 cp "manifest.firefox.json" "$FIREFOX_DIR/manifest.json"
+find "$FIREFOX_DIR" -name '.DS_Store' -delete
 FIREFOX_ZIP="flow-firefox-v${VERSION}.zip"
 ( cd "$FIREFOX_DIR" && zip -qr "$FIREFOX_ZIP" . && mv "$FIREFOX_ZIP" "$ROOT_DIR/$DIST_DIR/" )
 echo "✓ Firefox:  $DIST_DIR/$FIREFOX_ZIP"
