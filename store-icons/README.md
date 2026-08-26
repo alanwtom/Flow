@@ -1,8 +1,8 @@
 # Store icons
 
 Listing icons for AMO and the Chrome Web Store. These are **not** the extension's
-own icons — `images/bird*.png` are the toolbar icons and are referenced by the
-manifests. Nothing here is shipped inside the extension package.
+own icons — `images/bird*.png` are the toolbar icons referenced by the manifests.
+Nothing here is shipped inside the extension package.
 
 | File | Use |
 | --- | --- |
@@ -10,26 +10,46 @@ manifests. Nothing here is shipped inside the extension package.
 | `flow-icon-dark.png` | Blue bird on `#121212`, matches the popup |
 | `flow-icon-light.png` | Blue bird on white |
 | `flow-icon-transparent.png` | No plate |
-| `*@512.png` | For README art / CWS promo tiles |
+| `*@512.png` | README art, CWS promo tiles |
 | `flow-bird.svg` | Vector master, uses `currentColor` |
+| `LUCIDE-LICENSE` | ISC licence for the bird artwork — keep it alongside the SVG |
 
 AMO resizes anything larger to 128×128, so upload the 128 rather than the 512 to
 avoid an extra resampling pass.
 
+## Where the bird comes from
+
+`flow-bird.svg` is **Lucide's `bird` icon, mirrored horizontally** — the six
+upstream paths wrapped in a `scale(-1 1)` transform. It is not a trace and not a
+redraw. https://lucide.dev/icons/bird
+
+The extension's own `images/bird*.png` came from the same icon, flipped in commit
+`c2e3b5f` ("flip extension icons left"), then exported at a size that left them
+blurry.
+
+Identified by rendering candidate bird icons from ~200 sets via the Iconify
+search API and scoring silhouette overlap against `images/bird-active-128.png`:
+Lucide scored **88.1% IoU** mirrored, against 54.9% for the runner-up. The path
+data corroborates it exactly — `M16 7h.01` is the eye, `m20 7 2 .5-2 .5` the
+beak, `M10 18v3` and `M14 17.75V21` the two legs, `H12` the branch, `L2 20` the
+tail.
+
 ## Regenerating
 
-Derive new sizes from `flow-bird.svg`, **not** from `images/bird-active-128.png`.
+Derive every size from `flow-bird.svg`.
 
-That PNG is itself blurry — roughly 26% of its pixels sit in the soft middle of
-the alpha ramp, because it was upscaled from small art (`images/bird.png` is only
-24×24). Anything resampled from it inherits that blur, which is why the first
-version of these icons looked fuzzy.
+**Never** derive from `images/bird-active-128.png`. That file is blurry — roughly
+26% of its pixels sit in the soft middle of the alpha ramp, and 19% sit at alpha
+1–31, an invisible noise halo that also makes `getbbox()` report bounds ~17%
+larger than the real ink. Earlier icon attempts inherited both problems: soft
+edges, and a bird rendered too small inside the plate.
 
-`flow-bird.svg` was recovered from it by supersampling the alpha 8×,
-re-thresholding to restore hard edges, smoothing the contour, and tracing to
-Bezier paths. The finished 128px icons measure 0.9% soft midtones against the
-source's 26.1%.
+Rendered from the vector, the 128px icons measure 0.9% soft midtones.
 
-The trace is faithful to the original bird rather than a redraw, so at very large
-sizes the contour is slightly organic. It reads as clean at 128px and below,
-which covers every size the stores serve.
+Two things to keep if you rebuild the rasters:
+
+- Glyph at ~64% of the canvas (0.92 for the transparent variant).
+- Plate corner radius 0.2237 of the icon size, the iOS/macOS ratio.
+
+Since the real vector is available now, `images/bird*.png` could also be
+regenerated crisply from it at 16/48/128 — that has not been done.
