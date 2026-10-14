@@ -114,6 +114,15 @@ html.yt-block-autoplay .ytp-autonav-toggle-button {
   display: none !important;
 }
 
+/* YouTube Featured promos. The titled Featured shelf itself is hidden from
+   youtube-blocker.js, which matches on its heading text; CSS cannot read
+   text. What CSS can catch is the standalone promo card YouTube uses for
+   these placements. */
+html.yt-block-featured ytd-brand-video-singleton-renderer,
+html.yt-block-featured ytd-rich-section-renderer:has(ytd-brand-video-singleton-renderer) {
+  display: none !important;
+}
+
 /* Playables - hide the mini-games shelf on the homepage and elsewhere */
 html.yt-block-playables ytd-rich-section-renderer:has([is-mini-game-card-shelf]),
 html.yt-block-playables ytd-rich-section-renderer:has(ytd-mini-game-card-renderer),

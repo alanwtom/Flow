@@ -7,24 +7,30 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
   const YOUTUBE_FEATURES = [
     'yt_homepage', 'yt_shorts', 'yt_posts', 'yt_sidebar', 'yt_comments',
     'yt_endcards', 'yt_chat', 'yt_notifications', 'yt_create_button', 'yt_autoplay',
-    'yt_playables'
+    'yt_playables', 'yt_featured', 'yt_explore', 'yt_news', 'yt_auto_shelves'
   ];
 
   // Apply blocking based on individual settings
   function updateYouTubeBlocking() {
     browserAPI.storage.sync.get(YOUTUBE_FEATURES, function(result) {
-      // Apply classes for each enabled feature
-      document.documentElement.classList.toggle('yt-block-homepage', result.yt_homepage);
-      document.documentElement.classList.toggle('yt-block-shorts', result.yt_shorts);
-      document.documentElement.classList.toggle('yt-block-posts', result.yt_posts);
-      document.documentElement.classList.toggle('yt-block-sidebar', result.yt_sidebar);
-      document.documentElement.classList.toggle('yt-block-comments', result.yt_comments);
-      document.documentElement.classList.toggle('yt-block-endcards', result.yt_endcards);
-      document.documentElement.classList.toggle('yt-block-chat', result.yt_chat);
-      document.documentElement.classList.toggle('yt-block-notifications', result.yt_notifications);
-      document.documentElement.classList.toggle('yt-block-create-button', result.yt_create_button);
-      document.documentElement.classList.toggle('yt-block-autoplay', result.yt_autoplay);
-      document.documentElement.classList.toggle('yt-block-playables', result.yt_playables);
+      // Apply classes for each enabled feature. The !! matters: an unset
+      // setting comes back as undefined, and toggle(name, undefined) flips
+      // the class in some DOM implementations instead of removing it.
+      document.documentElement.classList.toggle('yt-block-homepage', !!result.yt_homepage);
+      document.documentElement.classList.toggle('yt-block-shorts', !!result.yt_shorts);
+      document.documentElement.classList.toggle('yt-block-posts', !!result.yt_posts);
+      document.documentElement.classList.toggle('yt-block-sidebar', !!result.yt_sidebar);
+      document.documentElement.classList.toggle('yt-block-comments', !!result.yt_comments);
+      document.documentElement.classList.toggle('yt-block-endcards', !!result.yt_endcards);
+      document.documentElement.classList.toggle('yt-block-chat', !!result.yt_chat);
+      document.documentElement.classList.toggle('yt-block-notifications', !!result.yt_notifications);
+      document.documentElement.classList.toggle('yt-block-create-button', !!result.yt_create_button);
+      document.documentElement.classList.toggle('yt-block-autoplay', !!result.yt_autoplay);
+      document.documentElement.classList.toggle('yt-block-playables', !!result.yt_playables);
+      document.documentElement.classList.toggle('yt-block-featured', !!result.yt_featured);
+      document.documentElement.classList.toggle('yt-block-explore', !!result.yt_explore);
+      document.documentElement.classList.toggle('yt-block-news', !!result.yt_news);
+      document.documentElement.classList.toggle('yt-block-auto-shelves', !!result.yt_auto_shelves);
 
       // Immediately apply JavaScript-based blocking for features that need it
       // Always call blockCreateButton to handle both enable and disable
@@ -35,6 +41,11 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
       if (result.yt_playables) {
         blockPlayablesElements();
       }
+      // Titled shelves (Featured, Explore, News, and the "Play while you
+      // watch" wording of the games shelf) can only be told apart by their
+      // heading text, which CSS cannot read, so they are hidden here. The
+      // helper does nothing unless one of those features is switched on.
+      blockTitledShelves();
     });
   }
 
@@ -192,14 +203,84 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
     });
 
     // Also hide any rich-section whose header/title text mentions "Playables"
+    // (including the "Play while you watch" wording YouTube now uses for the
+    // same mini-games shelf)
     const richSections = document.querySelectorAll('ytd-rich-section-renderer');
     richSections.forEach(section => {
       const headerText = (section.querySelector('#title, #header, h2, ytd-rich-shelf-renderer #title')?.textContent || '').trim();
-      if (/playables/i.test(headerText)) {
+      if (/playables|play while you watch/i.test(headerText)) {
         section.style.display = 'none';
         section.setAttribute('data-flow-blocked', 'playables');
       }
     });
+  }
+
+  // Shelves that can only be told apart by their heading. YouTube reuses the
+  // same few containers for every homepage shelf, so CSS has nothing stable
+  // to match on — the heading text is the identifier. Only the shelf's own
+  // title element is read, never the videos inside it, so a video that merely
+  // mentions one of these words in its title cannot hide a whole shelf.
+  const TITLED_SHELF_RULES = [
+    { className: 'yt-block-playables', pattern: /playables|play while you watch/i, tag: 'playables' },
+    { className: 'yt-block-featured', pattern: /youtube featured/i, tag: 'featured' },
+    { className: 'yt-block-explore', pattern: /explore more|most relevant/i, tag: 'explore' },
+    { className: 'yt-block-news', pattern: /breaking news|top news|trending/i, tag: 'news' }
+  ];
+
+  function getShelfTitleText(section) {
+    const titleEl = section.querySelector(
+      '#title, #title-text, #header, h2, yt-formatted-string#title, [slot="title"]'
+    );
+    return (titleEl?.textContent || '').trim();
+  }
+
+  function blockTitledShelves() {
+    const autoHide = document.documentElement.classList.contains('yt-block-auto-shelves');
+    const activeRules = TITLED_SHELF_RULES.filter(rule =>
+      document.documentElement.classList.contains(rule.className)
+    );
+    if (activeRules.length === 0 && !autoHide) return;
+
+    const sections = document.querySelectorAll(
+      'ytd-rich-section-renderer, ytd-rich-shelf-renderer, ytd-shelf-renderer, grid-shelf-view-model'
+    );
+    sections.forEach(section => {
+      const title = getShelfTitleText(section);
+      const rule = title ? activeRules.find(r => r.pattern.test(title)) : undefined;
+      if (rule) {
+        const target = section.closest('ytd-rich-section-renderer') || section;
+        target.style.display = 'none';
+        target.setAttribute('data-flow-blocked', rule.tag);
+      } else if (autoHide && section.tagName === 'YTD-RICH-SECTION-RENDERER') {
+        // Future-proof mode: hide every grouped shelf on the feed, including
+        // ones YouTube has not given a name we recognise yet. Single videos
+        // outside a shelf are never touched — only the shelf wrapper goes.
+        section.style.display = 'none';
+        section.setAttribute('data-flow-blocked', 'auto-shelf');
+      }
+    });
+
+    // Promotional cards labelled "YouTube featured" also turn up as loose
+    // cards in the grid rather than inside a titled shelf.
+    if (document.documentElement.classList.contains('yt-block-featured')) {
+      document.querySelectorAll('yt-lockup-view-model').forEach(lockup => {
+        if (/youtube featured/i.test(lockup.textContent || '')) {
+          const item = lockup.closest('ytd-rich-item-renderer') || lockup;
+          item.style.display = 'none';
+          item.setAttribute('data-flow-blocked', 'featured');
+        }
+      });
+    }
+  }
+
+  // True when any feature that needs the DOM watcher is switched on.
+  function needsShelfWatcher() {
+    return document.documentElement.classList.contains('yt-block-shorts') ||
+      document.documentElement.classList.contains('yt-block-playables') ||
+      document.documentElement.classList.contains('yt-block-featured') ||
+      document.documentElement.classList.contains('yt-block-explore') ||
+      document.documentElement.classList.contains('yt-block-news') ||
+      document.documentElement.classList.contains('yt-block-auto-shelves');
   }
 
   // MutationObserver for dynamic Shorts/Playables blocking
@@ -209,9 +290,7 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
     if (shortsObserver) return;
 
     shortsObserver = new MutationObserver((mutations) => {
-      const shortsEnabled = document.documentElement.classList.contains('yt-block-shorts');
-      const playablesEnabled = document.documentElement.classList.contains('yt-block-playables');
-      if (!shortsEnabled && !playablesEnabled) {
+      if (!needsShelfWatcher()) {
         return;
       }
 
@@ -227,8 +306,9 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
       if (hasNewNodes) {
         if (shortsDebounceTimer) return;
         shortsDebounceTimer = setTimeout(() => {
-          if (shortsEnabled) blockShortsElements();
-          if (playablesEnabled) blockPlayablesElements();
+          if (document.documentElement.classList.contains('yt-block-shorts')) blockShortsElements();
+          if (document.documentElement.classList.contains('yt-block-playables')) blockPlayablesElements();
+          blockTitledShelves();
           shortsDebounceTimer = null;
         }, 100);
       }
@@ -265,6 +345,10 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
           }
         });
       }
+      if (changes.yt_featured || changes.yt_explore || changes.yt_news || changes.yt_auto_shelves) {
+        blockTitledShelves();
+        startShortsObserver();
+      }
       if (changes.yt_create_button) {
         blockCreateButton(); // This now handles both enable and disable
       }
@@ -288,6 +372,11 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
         blockPlayablesElements();
         startShortsObserver();
       }
+      // Re-run titled-shelf blocking on navigation
+      if (needsShelfWatcher()) {
+        blockTitledShelves();
+        startShortsObserver();
+      }
       // Re-run Create button blocking on navigation
       if (document.documentElement.classList.contains('yt-block-create-button')) {
         blockCreateButton();
@@ -309,6 +398,11 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
         blockPlayablesElements();
         startShortsObserver();
       }
+      // Initial titled-shelf blocking (Featured / Explore / News)
+      if (needsShelfWatcher()) {
+        blockTitledShelves();
+        startShortsObserver();
+      }
       // Initial Create button blocking
       if (document.documentElement.classList.contains('yt-block-create-button')) {
         blockCreateButton();
@@ -324,6 +418,11 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
     // Initial Playables blocking
     if (document.documentElement.classList.contains('yt-block-playables')) {
       blockPlayablesElements();
+      startShortsObserver();
+    }
+    // Initial titled-shelf blocking (Featured / Explore / News)
+    if (needsShelfWatcher()) {
+      blockTitledShelves();
       startShortsObserver();
     }
     // Initial Create button blocking
