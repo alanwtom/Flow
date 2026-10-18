@@ -21,7 +21,7 @@ if (typeof chrome === 'undefined' || !chrome.storage) {
     yt_notifications: false,
     yt_create_button: false,
     yt_autoplay: false,
-    yt_playables: false,
+    yt_playables: true,
     yt_featured: false,
     yt_explore: false,
     yt_news: false,

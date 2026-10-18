@@ -71,6 +71,26 @@ const disp = (w, id) => w.document.getElementById(id)?.style.display ?? '(missin
   check('Loose normal card untouched', disp(w, 'loose-normal'), '');
 }
 
+// Case 1b: "Watch & Play" — YouTube's current name for the same games shelf
+// (screenshot: heading "Watch & Play", subheading "Play while watching
+// videos", game cards with Play buttons). It shows both on the homepage and
+// inside the watch page's Up Next list, whose containers differ.
+const WATCH_PLAY_BODY = [
+  `<ytd-rich-section-renderer id="s-watchplay"><div id="header"><div id="title">Watch &amp; Play</div><div id="subtitle">Play while watching videos</div></div><div class="game-card"><span>My Mini Mart</span><button>Play</button></div></ytd-rich-section-renderer>`,
+  `<ytd-item-section-renderer id="s-watchplay-side-wrap"><ytd-shelf-renderer id="s-watchplay-side"><h2>Watch &amp; Play</h2><ytd-mini-game-card-renderer><span>Evolution</span></ytd-mini-game-card-renderer></ytd-shelf-renderer></ytd-item-section-renderer>`,
+  shelf('s-watchplay-normal', 'Your subscriptions', '<ytd-rich-item-renderer><a href="/watch?v=3">Watch &amp; Play games with me live</a></ytd-rich-item-renderer>'),
+].join('\n');
+{
+  const w = makePage(WATCH_PLAY_BODY, { yt_playables: true });
+  check('Watch & Play hidden by Playables toggle (homepage shelf)', disp(w, 's-watchplay'), 'none');
+  check('Watch & Play hidden by Playables toggle (Up Next shelf)', disp(w, 's-watchplay-side'), 'none');
+  check('Normal shelf untouched (Watch & Play in a video title is not a shelf title)', disp(w, 's-watchplay-normal'), '');
+}
+{
+  const w = makePage(WATCH_PLAY_BODY, {});
+  check('Watch & Play stays when Playables toggle is off', disp(w, 's-watchplay'), '');
+}
+
 // Case 2: only Featured on — news/explore/play shelves stay.
 {
   const w = makePage(BODY, { yt_featured: true });
@@ -106,6 +126,17 @@ const disp = (w, id) => w.document.getElementById(id)?.style.display ?? '(missin
   feed.appendChild(div.firstChild);
   await new Promise(r => setTimeout(r, 350));
   check('Late-added Top news shelf hidden by watcher', disp(w, 's-late'), 'none');
+}
+
+// Case 4b: same for a Watch & Play shelf that loads in while scrolling.
+{
+  const w = makePage('<div id="feed"></div>', { yt_playables: true });
+  const feed = w.document.getElementById('feed');
+  const div = w.document.createElement('div');
+  div.innerHTML = shelf('s-late-play', 'Watch & Play');
+  feed.appendChild(div.firstChild);
+  await new Promise(r => setTimeout(r, 350));
+  check('Late-added Watch & Play shelf hidden by watcher', disp(w, 's-late-play'), 'none');
 }
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);

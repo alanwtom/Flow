@@ -59,7 +59,7 @@ const SUB_OPTIONS = {
       { key: 'yt_homepage', label: 'Hide Homepage Feed', default: true },
       { key: 'yt_shorts', label: 'Hide Shorts', default: true },
       { key: 'yt_posts', label: 'Hide Community Posts', default: true },
-      { key: 'yt_playables', label: 'Hide Playables (Mini-Games)', default: false },
+      { key: 'yt_playables', label: 'Hide Watch & Play / Playables (Mini-Games)', default: true },
       { key: 'yt_featured', label: 'Hide YouTube Featured', default: false },
       { key: 'yt_explore', label: 'Hide Explore & Most Relevant', default: false },
       { key: 'yt_news', label: 'Hide News Shelves (Breaking / Trending)', default: false },

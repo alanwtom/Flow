@@ -178,9 +178,15 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
       'ytd-rich-section-renderer:has([is-mini-game-card-shelf])',
       'ytd-rich-section-renderer:has(ytd-mini-game-card-renderer)',
       'ytd-rich-shelf-renderer:has([is-mini-game-card-shelf])',
+      // Same shelf inside the watch page's Up Next list
+      'ytd-shelf-renderer:has([is-mini-game-card-shelf])',
+      'ytd-shelf-renderer:has(ytd-mini-game-card-renderer)',
+      'ytd-item-section-renderer:has(ytd-mini-game-card-renderer)',
       // Playables section by links to /playables
       'ytd-rich-section-renderer:has(a[href*="/playables"])',
       'ytd-rich-shelf-renderer:has(a[href*="/playables"])',
+      'ytd-shelf-renderer:has(a[href*="/playables"])',
+      'ytd-item-section-renderer:has(a[href*="/playables"])',
       'ytd-rich-item-renderer:has(a[href*="/playables"])',
       // Direct mini-game card elements
       'ytd-mini-game-card-renderer',
@@ -202,15 +208,17 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
       }
     });
 
-    // Also hide any rich-section whose header/title text mentions "Playables"
-    // (including the "Play while you watch" wording YouTube now uses for the
-    // same mini-games shelf)
-    const richSections = document.querySelectorAll('ytd-rich-section-renderer');
+    // Also hide any shelf whose heading names the games shelf. YouTube has
+    // called it "Playables", "Play while you watch", and now "Watch & Play"
+    // (subtitled "Play while watching videos") — all the same mini-games.
+    const richSections = document.querySelectorAll(
+      'ytd-rich-section-renderer, ytd-rich-shelf-renderer, ytd-shelf-renderer, ytd-item-section-renderer, grid-shelf-view-model'
+    );
     richSections.forEach(section => {
-      const headerText = (section.querySelector('#title, #header, h2, ytd-rich-shelf-renderer #title')?.textContent || '').trim();
-      if (/playables|play while you watch/i.test(headerText)) {
-        section.style.display = 'none';
-        section.setAttribute('data-flow-blocked', 'playables');
+      if (PLAYABLES_TITLE_PATTERN.test(getShelfTitleText(section))) {
+        const target = section.closest('ytd-rich-section-renderer') || section;
+        target.style.display = 'none';
+        target.setAttribute('data-flow-blocked', 'playables');
       }
     });
   }
@@ -220,18 +228,32 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
   // to match on — the heading text is the identifier. Only the shelf's own
   // title element is read, never the videos inside it, so a video that merely
   // mentions one of these words in its title cannot hide a whole shelf.
+  // Every name YouTube has given the mini-games shelf so far.
+  const PLAYABLES_TITLE_PATTERN = /watch\s*(?:&|and)\s*play|playables|play while (?:you watch|watching)/i;
+
   const TITLED_SHELF_RULES = [
-    { className: 'yt-block-playables', pattern: /playables|play while you watch/i, tag: 'playables' },
+    { className: 'yt-block-playables', pattern: PLAYABLES_TITLE_PATTERN, tag: 'playables' },
     { className: 'yt-block-featured', pattern: /youtube featured/i, tag: 'featured' },
     { className: 'yt-block-explore', pattern: /explore more|most relevant/i, tag: 'explore' },
     { className: 'yt-block-news', pattern: /breaking news|top news|trending/i, tag: 'news' }
   ];
 
   function getShelfTitleText(section) {
-    const titleEl = section.querySelector(
-      '#title, #title-text, #header, h2, yt-formatted-string#title, [slot="title"]'
+    // Read the shelf's own heading — title and subtitle together, since the
+    // games shelf is named in one and described in the other ("Watch & Play"
+    // / "Play while watching videos"). Headings inside a video or game card
+    // are skipped, so a video merely mentioning these words in its title
+    // cannot hide the shelf it sits in.
+    const headingEls = section.querySelectorAll(
+      '#title, #title-text, #subtitle, #header, h2, yt-formatted-string#title, [slot="title"]'
     );
-    return (titleEl?.textContent || '').trim();
+    const texts = [];
+    headingEls.forEach(el => {
+      if (el.closest('ytd-rich-item-renderer, ytd-video-renderer, ytd-compact-video-renderer, yt-lockup-view-model, ytd-mini-game-card-renderer')) return;
+      const text = (el.textContent || '').trim();
+      if (text) texts.push(text);
+    });
+    return texts.join(' ');
   }
 
   function blockTitledShelves() {
@@ -242,7 +264,7 @@ const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
     if (activeRules.length === 0 && !autoHide) return;
 
     const sections = document.querySelectorAll(
-      'ytd-rich-section-renderer, ytd-rich-shelf-renderer, ytd-shelf-renderer, grid-shelf-view-model'
+      'ytd-rich-section-renderer, ytd-rich-shelf-renderer, ytd-shelf-renderer, ytd-item-section-renderer, grid-shelf-view-model'
     );
     sections.forEach(section => {
       const title = getShelfTitleText(section);
